@@ -1,0 +1,7 @@
+{
+    "port": 8000,
+    "database": {
+        "driver": "sqlite",
+        "host": "test.sqlite"
+    }
+}
