@@ -45,7 +45,7 @@ func (c *Config) ConnectDB() (*gorm.DB, error) {
 	case "sqlite":
 		return gorm.Open(sqlite.Open(c.Database.Host), &gorm.Config{})
 	default:
-		return nil, errors.New("Unrecognized database backend")
+		return nil, errors.New("unrecognized database backend")
 	}
 }
 

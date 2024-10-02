@@ -1,7 +1,10 @@
 {
     "port": 8000,
     "database": {
-        "driver": "sqlite",
-        "host": "test.sqlite"
+        "driver": "mysql",
+        "host": "localhost",
+        "name": "gofeed",
+        "user": "gofeed",
+        "pass": "gofeed"
     }
 }
