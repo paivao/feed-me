@@ -13,8 +13,8 @@ type Net struct {
 
 type IPEntry struct {
 	Entry
-	Network  net.IPNet `gorm:"type:binary(17)"`
-	IPFeedID uint
+	Network  net.IPNet `gorm:"type:binary(17);not null;uniqueIndex:idx_unique_entry"`
+	IPFeedID uint      `gorm:"not null;uniqueIndex:idx_unique_entry"`
 }
 
 func (ip *Net) Scan(value interface{}) error {
@@ -28,7 +28,15 @@ func (ip *Net) Scan(value interface{}) error {
 	return nil
 }
 
-// Value return json value, implement driver.Valuer interface
+// Value return binary value, implement driver.Valuer interface
 func (ip Net) Value() (driver.Value, error) {
-	return ip.String(), nil
+	ones, bits := ip.Mask.Size()
+	if bits == 32 || bits == 128 {
+		return nil, errors.New(fmt.Sprint("invalid IP length: ", bits))
+	}
+	bits = (bits >> 3) + 1
+	data := make([]byte, bits)
+	data[0] = byte(ones)
+	copy(data[1:], ip.IP)
+	return data, nil
 }

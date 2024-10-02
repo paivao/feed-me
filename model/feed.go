@@ -6,5 +6,5 @@ import (
 
 type Feed struct {
 	gorm.Model
-	Name string
+	Name string `gorm:"size:128;not null;unique"`
 }

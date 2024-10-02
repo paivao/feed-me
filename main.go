@@ -18,14 +18,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = db.AutoMigrate(&model.IPEntry{})
+	log.Println("Starting database migration...")
+	err = db.AutoMigrate(&model.IPFeed{}, &model.IPEntry{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = db.AutoMigrate(&model.IPFeed{})
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Println("Database migration done.")
 
 	// Fiber instance
 	app := fiber.New()
