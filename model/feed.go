@@ -6,5 +6,6 @@ import (
 
 type Feed struct {
 	gorm.Model
-	Name string `gorm:"size:128;not null;unique"`
+	Name     string `gorm:"size:128;not null;unique"`
+	IsPublic bool   `gorm:"not null"`
 }

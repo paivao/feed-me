@@ -16,6 +16,7 @@ import (
 
 type Config struct {
 	Port     int
+	Key      string
 	Database struct {
 		Driver string
 		Host   string

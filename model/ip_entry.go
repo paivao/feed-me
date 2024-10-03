@@ -5,16 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"net"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
-type Net struct {
-	net.IPNet
-}
+type Net net.IPNet
 
 type IPEntry struct {
 	Entry
-	Network  net.IPNet `gorm:"type:binary(17);not null;uniqueIndex:idx_unique_entry"`
-	IPFeedID uint      `gorm:"not null;uniqueIndex:idx_unique_entry"`
+	Network  Net  `gorm:"not null;uniqueIndex:idx_unique_entry"`
+	IPFeedID uint `gorm:"not null;uniqueIndex:idx_unique_entry"`
 }
 
 func (ip *Net) Scan(value interface{}) error {
@@ -23,7 +24,9 @@ func (ip *Net) Scan(value interface{}) error {
 		return errors.New(fmt.Sprint("Failed to solve value: ", value))
 	}
 	var mask int = int(byte_arr[0])
-	ip.IP = byte_arr[1:]
+	byte_arr = byte_arr[1:]
+	ip.IP = make(net.IP, len(byte_arr))
+	copy(ip.IP, byte_arr)
 	ip.Mask = net.CIDRMask(mask, len(ip.IP)*8)
 	return nil
 }
@@ -31,7 +34,7 @@ func (ip *Net) Scan(value interface{}) error {
 // Value return binary value, implement driver.Valuer interface
 func (ip Net) Value() (driver.Value, error) {
 	ones, bits := ip.Mask.Size()
-	if bits == 32 || bits == 128 {
+	if bits != 32 && bits != 128 {
 		return nil, errors.New(fmt.Sprint("invalid IP length: ", bits))
 	}
 	bits = (bits >> 3) + 1
@@ -39,4 +42,12 @@ func (ip Net) Value() (driver.Value, error) {
 	data[0] = byte(ones)
 	copy(data[1:], ip.IP)
 	return data, nil
+}
+
+func (Net) GormDataType() string {
+	return "net"
+}
+
+func (Net) GormDBDataType(db *gorm.DB, field *schema.Field) string {
+	return "varbinary(17)"
 }
