@@ -9,29 +9,23 @@ import (
 	"gorm.io/gorm"
 )
 
-type FeedController baseController
-
-func NewFeedController(db *gorm.DB) FeedController {
-	return FeedController{
-		db: db,
-	}
-}
-
-func (c FeedController) PrintFeeds(f *fiber.Ctx) error {
-	var feed model.IPFeed
-	err := c.db.Preload("Entries").Where("name = ?", f.Params("name")).Take(&feed).Error
-	if err != nil {
-		return err
-	}
-	now := time.Now()
-	for _, ip := range feed.Entries {
-		if !ip.Enabled {
-			continue
+func PrintFeeds(db *gorm.DB) func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		var feed model.IPFeed
+		err := db.Preload("Entries").Where("name = ?", c.Params("name")).Take(&feed).Error
+		if err != nil {
+			return err
 		}
-		if ip.ValidUntil != nil && ip.ValidUntil.Before(now) {
-			continue
+		now := time.Now()
+		for _, ip := range feed.Entries {
+			if !ip.Enabled {
+				continue
+			}
+			if ip.ValidUntil != nil && ip.ValidUntil.Before(now) {
+				continue
+			}
+			c.Writef("%s\n", (*net.IPNet)(&ip.Network).String())
 		}
-		f.Writef("%s\n", (*net.IPNet)(&ip.Network).String())
+		return nil
 	}
-	return nil
 }
