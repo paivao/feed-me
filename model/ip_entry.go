@@ -5,17 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 )
 
 type Net net.IPNet
 
 type IPEntry struct {
 	Entry
-	Network  Net  `gorm:"not null;uniqueIndex:idx_unique_entry"`
-	IPFeedID uint `gorm:"not null;uniqueIndex:idx_unique_entry"`
+	Network  Net
+	IPFeedID uint
 }
 
 func (ip *Net) Scan(value interface{}) error {
@@ -42,12 +39,4 @@ func (ip Net) Value() (driver.Value, error) {
 	data[0] = byte(ones)
 	copy(data[1:], ip.IP)
 	return data, nil
-}
-
-func (Net) GormDataType() string {
-	return "net"
-}
-
-func (Net) GormDBDataType(db *gorm.DB, field *schema.Field) string {
-	return "varbinary(17)"
 }
