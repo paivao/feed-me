@@ -7,10 +7,170 @@ package database
 
 import (
 	"context"
+	"database/sql"
+
+	"github.com/feed-me/utils"
 )
 
+const createFeed = `-- name: CreateFeed :exec
+INSERT INTO feeds (name, is_public, type) VALUES (?, ?, ?)
+`
+
+type CreateFeedParams struct {
+	Name     string    `json:"name"`
+	IsPublic bool      `json:"is_public"`
+	Type     FeedsType `json:"type"`
+}
+
+func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) error {
+	_, err := q.db.ExecContext(ctx, createFeed, arg.Name, arg.IsPublic, arg.Type)
+	return err
+}
+
+const getDomainEnabledEntries = `-- name: GetDomainEnabledEntries :many
+SELECT value FROM domain_entries WHERE enabled = ? AND feed_id = ? AND (valid_until IS NULL OR valid_until >= ?)
+`
+
+type GetDomainEnabledEntriesParams struct {
+	Enabled    bool         `json:"enabled"`
+	FeedID     int32        `json:"feed_id"`
+	ValidUntil sql.NullTime `json:"valid_until"`
+}
+
+func (q *Queries) GetDomainEnabledEntries(ctx context.Context, arg GetDomainEnabledEntriesParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getDomainEnabledEntries, arg.Enabled, arg.FeedID, arg.ValidUntil)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		items = append(items, value)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFeedById = `-- name: GetFeedById :one
+SELECT id, name, is_public, type FROM feeds WHERE id = ?
+`
+
+func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeedById, id)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsPublic,
+		&i.Type,
+	)
+	return i, err
+}
+
+const getFeedByName = `-- name: GetFeedByName :one
+SELECT id, name, is_public, type FROM feeds WHERE name = ?
+`
+
+func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeedByName, name)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.IsPublic,
+		&i.Type,
+	)
+	return i, err
+}
+
+const getFeedTypeById = `-- name: GetFeedTypeById :one
+SELECT type FROM feeds WHERE id = ?
+`
+
+func (q *Queries) GetFeedTypeById(ctx context.Context, id int32) (FeedsType, error) {
+	row := q.db.QueryRowContext(ctx, getFeedTypeById, id)
+	var type_ FeedsType
+	err := row.Scan(&type_)
+	return type_, err
+}
+
+const getIPEnabledEntries = `-- name: GetIPEnabledEntries :many
+SELECT value FROM ip_entries WHERE enabled = ? AND feed_id = ? AND (valid_until IS NULL OR valid_until >= ?)
+`
+
+type GetIPEnabledEntriesParams struct {
+	Enabled    bool         `json:"enabled"`
+	FeedID     int32        `json:"feed_id"`
+	ValidUntil sql.NullTime `json:"valid_until"`
+}
+
+func (q *Queries) GetIPEnabledEntries(ctx context.Context, arg GetIPEnabledEntriesParams) ([]utils.MyNet, error) {
+	rows, err := q.db.QueryContext(ctx, getIPEnabledEntries, arg.Enabled, arg.FeedID, arg.ValidUntil)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []utils.MyNet
+	for rows.Next() {
+		var value utils.MyNet
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		items = append(items, value)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getURLEnabledEntries = `-- name: GetURLEnabledEntries :many
+SELECT value FROM url_entries WHERE enabled = ? AND feed_id = ? AND (valid_until IS NULL OR valid_until >= ?)
+`
+
+type GetURLEnabledEntriesParams struct {
+	Enabled    bool         `json:"enabled"`
+	FeedID     int32        `json:"feed_id"`
+	ValidUntil sql.NullTime `json:"valid_until"`
+}
+
+func (q *Queries) GetURLEnabledEntries(ctx context.Context, arg GetURLEnabledEntriesParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getURLEnabledEntries, arg.Enabled, arg.FeedID, arg.ValidUntil)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var value string
+		if err := rows.Scan(&value); err != nil {
+			return nil, err
+		}
+		items = append(items, value)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserById = `-- name: GetUserById :one
-SELECT id, name, email, password_hash FROM ` + "`" + `users` + "`" + ` WHERE ` + "`" + `id` + "`" + ` = ?
+SELECT id, name, email, password_hash FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
@@ -26,7 +186,7 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserByName = `-- name: GetUserByName :one
-SELECT id, name, email, password_hash FROM ` + "`" + `users` + "`" + ` WHERE ` + "`" + `name` + "`" + ` = ?
+SELECT id, name, email, password_hash FROM users WHERE name = ?
 `
 
 func (q *Queries) GetUserByName(ctx context.Context, name string) (User, error) {
@@ -41,8 +201,88 @@ func (q *Queries) GetUserByName(ctx context.Context, name string) (User, error) 
 	return i, err
 }
 
+const insertIPEntry = `-- name: InsertIPEntry :exec
+INSERT INTO ip_entries (value, valid_until, feed_id) VALUES (?, ?, ?)
+`
+
+type InsertIPEntryParams struct {
+	Value      utils.MyNet  `json:"value"`
+	ValidUntil sql.NullTime `json:"valid_until"`
+	FeedID     int32        `json:"feed_id"`
+}
+
+func (q *Queries) InsertIPEntry(ctx context.Context, arg InsertIPEntryParams) error {
+	_, err := q.db.ExecContext(ctx, insertIPEntry, arg.Value, arg.ValidUntil, arg.FeedID)
+	return err
+}
+
+const listFeeds = `-- name: ListFeeds :many
+SELECT id, name, is_public, type FROM feeds
+`
+
+func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
+	rows, err := q.db.QueryContext(ctx, listFeeds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Feed
+	for rows.Next() {
+		var i Feed
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.IsPublic,
+			&i.Type,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listIPEntries = `-- name: ListIPEntries :many
+SELECT id, value, enabled, valid_until, feed_id FROM ip_entries WHERE feed_id = ?
+`
+
+func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, error) {
+	rows, err := q.db.QueryContext(ctx, listIPEntries, feedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []IpEntry
+	for rows.Next() {
+		var i IpEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.Value,
+			&i.Enabled,
+			&i.ValidUntil,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
-SELECT id, name, email, password_hash FROM ` + "`" + `users` + "`" + `
+SELECT id, name, email, password_hash FROM users
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {

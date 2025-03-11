@@ -8,6 +8,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+
+	"github.com/feed-me/utils"
 )
 
 type FeedsType string
@@ -31,8 +33,8 @@ func (e *FeedsType) Scan(src interface{}) error {
 }
 
 type NullFeedsType struct {
-	FeedsType FeedsType
-	Valid     bool // Valid is true if FeedsType is not NULL
+	FeedsType FeedsType `json:"feeds_type"`
+	Valid     bool      `json:"valid"` // Valid is true if FeedsType is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -53,66 +55,24 @@ func (ns NullFeedsType) Value() (driver.Value, error) {
 	return string(ns.FeedsType), nil
 }
 
-type DomainEntry struct {
-	ID         int64
-	Value      string
-	Enabled    bool
-	ValidUntil sql.NullTime
-	FeedID     int32
-}
-
 type Feed struct {
-	ID       int32
-	Name     string
-	IsPublic bool
-	Type     FeedsType
-}
-
-type Group struct {
-	ID   int32
-	Name string
-}
-
-type GroupPermission struct {
-	GroupID      int32
-	PermissionID int32
+	ID       int32     `json:"id"`
+	Name     string    `json:"name"`
+	IsPublic bool      `json:"is_public"`
+	Type     FeedsType `json:"type"`
 }
 
 type IpEntry struct {
-	ID         int64
-	Value      []byte
-	Mask       uint8
-	Enabled    bool
-	ValidUntil sql.NullTime
-	FeedID     int32
-}
-
-type Permission struct {
-	ID   int32
-	Name string
-}
-
-type UrlEntry struct {
-	ID         int64
-	Value      string
-	Enabled    bool
-	ValidUntil sql.NullTime
-	FeedID     int32
+	ID         int64        `json:"id"`
+	Value      utils.MyNet  `json:"value"`
+	Enabled    bool         `json:"enabled"`
+	ValidUntil sql.NullTime `json:"valid_until"`
+	FeedID     int32        `json:"feed_id"`
 }
 
 type User struct {
-	ID           int32
-	Name         string
-	Email        string
-	PasswordHash string
-}
-
-type UserGroup struct {
-	UserID  int32
-	GroupID int32
-}
-
-type UserPermission struct {
-	UserID       int32
-	PermissionID int32
+	ID           int32  `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
 }

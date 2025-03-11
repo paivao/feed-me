@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,10 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type Config struct {
@@ -37,14 +35,12 @@ func LoadConfiguration(filename string) (*Config, error) {
 	return &config, err
 }
 
-func (c *Config) ConnectDB() (*gorm.DB, error) {
+func (c *Config) ConnectDB() (*sql.DB, error) {
 	switch c.Database.Driver {
 	case "mysql":
-		return gorm.Open(mysql.Open(c.getMysqlDSN()), &gorm.Config{})
+		return sql.Open("mysql", c.getMysqlDSN())
 	case "postgres":
-		return gorm.Open(postgres.Open(c.getPostgresDSN()), &gorm.Config{})
-	case "sqlite":
-		return gorm.Open(sqlite.Open(c.Database.Host), &gorm.Config{})
+		return sql.Open("postgres", c.getMysqlDSN())
 	default:
 		return nil, errors.New("unrecognized database backend")
 	}

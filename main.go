@@ -4,27 +4,16 @@ import (
 	"encoding/base64"
 	"errors"
 	"log"
-	"net"
 	"strings"
 	"time"
 
 	"github.com/feed-me/controller"
-	"github.com/feed-me/model"
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/session"
-	"gorm.io/gorm"
 )
-
-func networkFromCIDR(s string) model.Net {
-	_, net, err := net.ParseCIDR(s)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return model.Net(*net)
-}
 
 func main() {
 	conf, err := LoadConfiguration("config.json")
@@ -36,15 +25,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	log.Println("Starting database migration...")
-	err = db.AutoMigrate(&model.IPFeed{}, &model.IPEntry{}, &model.User{}, &model.Group{}, &model.Permission{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Database migration done.")
-
-	generateTestData(db)
 
 	store := session.New()
 
@@ -58,14 +38,25 @@ func main() {
 		Key: conf.Key,
 	}))
 
+	feedController := controller.FeedController{DB: db}
+	entryController := controller.EntryController{DB: db}
+	userController := controller.UserController{DB: db, Store: store}
+
 	// Expose feed list
-	app.Get("/feed/ip/:name", exportBasicAuth, controller.PrintFeeds(db))
+	app.Get("/feed/:name", exportBasicAuth, feedController.PrintFeed)
 
 	//Api
 	api := fiber.New(fiber.Config{
 		ErrorHandler: jsonErrorHandler,
 	})
-	api.Post("/login", controller.Login(db, store))
+	api.Post("/login", userController.Login)
+
+	api.Put("/feed/create", feedController.CreateFeed)
+	api.Get("/feed/list", feedController.ListFeeds)
+
+	api.Get("/entry/ip/:name/", entryController.ListIPEntries)
+	api.Get("/entry/ip/:name/create", entryController.AddIPEntry)
+
 	app.Mount("/api", api)
 
 	// Static file server
@@ -92,33 +83,6 @@ func exportBasicAuth(c *fiber.Ctx) error {
 	c.Locals("username", userpass[:index])
 	c.Locals("password", userpass[index+1:])
 	return c.Next()
-}
-
-func generateTestData(db *gorm.DB) {
-	test := model.IPFeed{
-		Feed: model.Feed{
-			Name: "teste",
-		},
-		Entries: []model.IPEntry{
-			{
-				Entry: model.Entry{
-					Enabled: true,
-				},
-				Network: networkFromCIDR("127.0.0.1/32"),
-			},
-		},
-	}
-	hash, err := utils.PasswordHash("admin")
-	if err != nil {
-		log.Fatal(err)
-	}
-	testUser := model.User{
-		Name:         "admin",
-		PasswordHash: hash,
-		Email:        "admin@feed.me",
-	}
-	db.Create(&test)
-	db.Create(&testUser)
 }
 
 func jsonErrorHandler(ctx *fiber.Ctx, err error) error {

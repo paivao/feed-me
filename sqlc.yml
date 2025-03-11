@@ -6,3 +6,11 @@ sql:
     gen:
       go:
         out: "database"
+        emit_json_tags: true
+        omit_unused_structs: true
+        query_parameter_limit: 1
+        overrides:
+          - column: ip_entries.value
+            go_type:
+              import: "github.com/feed-me/utils"
+              type: MyNet
