@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"fmt"
 	"net"
@@ -46,21 +45,19 @@ func (ip *MyNet) MarshalJSON() ([]byte, error) {
 	return []byte(ip.String()), nil
 }
 
-func isIPv4(ip net.IP) bool {
-	return len(ip) == net.IPv4len || bytes.Equal([]byte(ip)[:12], ipv4Prefix)
-}
-
 func (ip *MyNet) UnmarshalJSON(b []byte) error {
 	value := string(b[1 : len(b)-1])
 	if strings.IndexByte(value, '/') == -1 {
 		calculated_ip := net.ParseIP(value)
+		calculated_ipv4 := calculated_ip.To4()
 		if calculated_ip == nil {
 			return &net.ParseError{Type: "Unknown IP address", Text: value}
 		}
-		ip.IP = calculated_ip
-		if isIPv4(calculated_ip) {
+		if calculated_ipv4 != nil {
+			ip.IP = calculated_ipv4
 			ip.Mask = net.CIDRMask(net.IPv4len*8, net.IPv4len*8)
 		} else {
+			ip.IP = calculated_ip
 			ip.Mask = net.CIDRMask(net.IPv6len*8, net.IPv6len*8)
 		}
 		return nil
