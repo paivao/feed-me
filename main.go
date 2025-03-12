@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -65,7 +66,7 @@ func main() {
 	app.Static("/", "./static")
 
 	// Start server
-	log.Fatal(app.Listen(":3000"))
+	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", conf.Host, conf.Port)))
 }
 
 func exportBasicAuth(c *fiber.Ctx) error {

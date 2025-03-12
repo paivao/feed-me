@@ -13,6 +13,7 @@ import (
 )
 
 type Config struct {
+	Host     string
 	Port     int
 	Key      string
 	Database struct {
