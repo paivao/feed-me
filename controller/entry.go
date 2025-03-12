@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/feed-me/database"
-	"github.com/feed-me/utils"
+	"github.com/feed-me/types"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -46,5 +46,5 @@ func (ctrl *EntryController) AddIPEntry(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(utils.NewMessage("ip added"))
+	return c.JSON(types.NewMessage("ip added"))
 }

@@ -1,4 +1,4 @@
-package utils
+package types
 
 import (
 	"database/sql/driver"
@@ -10,8 +10,6 @@ import (
 type MyNet struct {
 	net.IPNet
 }
-
-var ipv4Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255}
 
 func (ip *MyNet) Scan(src any) error {
 	bytes, ok := src.([]byte)

@@ -12,5 +12,5 @@ sql:
         overrides:
           - column: ip_entries.value
             go_type:
-              import: "github.com/feed-me/utils"
+              import: "github.com/feed-me/types"
               type: MyNet

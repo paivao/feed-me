@@ -2,10 +2,11 @@ package controller
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/feed-me/database"
-	"github.com/feed-me/utils"
+	"github.com/feed-me/types"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -28,11 +29,50 @@ func (ctrl *FeedController) CreateFeed(c *fiber.Ctx) error {
 		return err
 	}
 	queries := database.New(ctrl.DB)
-	err := queries.CreateFeed(c.Context(), req)
+	result, err := queries.CreateFeed(c.Context(), req)
 	if err != nil {
 		return err
 	}
-	return c.JSON(utils.NewMessage("feed criado com sucesso"))
+	id, err := result.LastInsertId()
+	return c.JSON(types.JsonMessageId{Message: "feed created successfully", ID: id})
+}
+
+func (ctrl *FeedController) EditFeed(c *fiber.Ctx) error {
+	var req database.EditFeedByIdParams
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return err
+	}
+	req.ID = int32(id)
+	queries := database.New(ctrl.DB)
+	result, err := queries.EditFeedById(c.Context(), req)
+	rows, err2 := result.RowsAffected()
+	err = errors.Join(err, err2)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fiber.ErrNotFound
+	}
+	return c.JSON(types.JsonMessageId{Message: "Feed modified", ID: int64(id)})
+}
+
+func (ctrl *FeedController) DeleteFeed(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return err
+	}
+	queries := database.New(ctrl.DB)
+	result, err := queries.RemoveFeedById(c.Context(), int32(id))
+	rows, err2 := result.RowsAffected()
+	err = errors.Join(err, err2)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fiber.ErrNotFound
+	}
+	return c.JSON(types.JsonMessageId{Message: "Feed removed", ID: int64(id)})
 }
 
 func (ctrl *FeedController) PrintFeed(c *fiber.Ctx) error {

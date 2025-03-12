@@ -1,4 +1,4 @@
-package utils
+package types
 
 import "fmt"
 
@@ -8,6 +8,11 @@ type JsonError struct {
 
 type JsonMessage struct {
 	Message string `json:"message"`
+}
+
+type JsonMessageId struct {
+	Message string `json:"message"`
+	ID      int64  `json:"id"`
 }
 
 func NewJsonError(err error) JsonError {

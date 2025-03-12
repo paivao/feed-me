@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/feed-me/database"
+	"github.com/feed-me/types"
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -13,8 +14,6 @@ const (
 	userSessionField string = "user_id"
 )
 
-var defaultHash string
-
 type UserController struct {
 	DB    *sql.DB
 	Store *session.Store
@@ -23,14 +22,6 @@ type UserController struct {
 type UserLogin struct {
 	Username string
 	Password string
-}
-
-func init() {
-	hash, err := utils.PasswordHash("")
-	if err != nil {
-		panic(err)
-	}
-	defaultHash = hash
 }
 
 func (ctrl *UserController) UserLoggedMiddleware(c *fiber.Ctx) error {
@@ -65,19 +56,15 @@ func (ctrl *UserController) Login(c *fiber.Ctx) error {
 		return err
 	}
 	queries := database.New(ctrl.DB)
-	user, err := queries.GetUserByName(c.Context(), userlogin.Username)
 
-	if err == sql.ErrNoRows {
-		user.PasswordHash = defaultHash
-	} else if err != nil {
-		return err
-	}
-	if !utils.PasswordVerify(userlogin.Password, user.PasswordHash) {
+	user := utils.GetUser(c.Context(), queries, userlogin.Username, userlogin.Password)
+
+	if user == nil {
 		return fiber.NewError(fiber.StatusForbidden, "usuário ou senha incorretos")
 	}
 	sess.Set(userSessionField, user.ID)
 	if err := sess.Save(); err != nil {
 		return err
 	}
-	return c.JSON(utils.NewMessage("logado com sucesso"))
+	return c.JSON(types.NewMessage("logado com sucesso"))
 }

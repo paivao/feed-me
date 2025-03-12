@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/feed-me/controller"
-	"github.com/feed-me/utils"
+	"github.com/feed-me/types"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -53,12 +53,26 @@ func main() {
 	api.Post("/login", userController.Login)
 
 	feedGroup := api.Group("/feed", userController.UserLoggedMiddleware)
-	feedGroup.Put("/create", feedController.CreateFeed)
-	feedGroup.Get("/list", feedController.ListFeeds)
+	feedGroup.Put("", feedController.CreateFeed)
+	feedGroup.Get("", feedController.ListFeeds)
+	feedGroup.Post("/:id", feedController.EditFeed)
+	feedGroup.Delete("/:id", feedController.DeleteFeed)
 
 	entryGroup := api.Group("/entry", userController.UserLoggedMiddleware)
-	entryGroup.Get("/ip/:name/", entryController.ListIPEntries)
-	entryGroup.Get("/ip/:name/create", entryController.AddIPEntry)
+	entryGroup.Get("/ip/:feed/", entryController.ListIPEntries)
+	entryGroup.Put("/ip/:feed/", entryController.AddIPEntry)
+	entryGroup.Post("/ip/:feed/:id", entryController.EditIPEntry)
+	entryGroup.Delete("/ip/:feed/:id", entryController.DeleteIPEntry)
+
+	entryGroup.Get("/domain/:feed/", entryController.ListDomainEntries)
+	entryGroup.Put("/domain/:feed/", entryController.AddDomainEntry)
+	entryGroup.Post("/domain/:feed/:id", entryController.EditDomainEntry)
+	entryGroup.Delete("/domain/:feed/:id", entryController.DeleteDomainEntry)
+
+	entryGroup.Get("/url/:feed/", entryController.ListURLEntries)
+	entryGroup.Put("/url/:feed/", entryController.AddURLEntry)
+	entryGroup.Post("/url/:feed/:id", entryController.EditURLEntry)
+	entryGroup.Delete("/url/:feed/:id", entryController.DeleteURLEntry)
 
 	app.Mount("/api", api)
 
@@ -99,5 +113,5 @@ func jsonErrorHandler(ctx *fiber.Ctx, err error) error {
 	}
 
 	// Return status code with error message
-	return ctx.Status(code).JSON(utils.NewJsonError(err))
+	return ctx.Status(code).JSON(types.NewJsonError(err))
 }

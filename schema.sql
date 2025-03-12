@@ -8,7 +8,7 @@ CREATE TABLE feeds (
 
 CREATE TABLE ip_entries (
     id BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    value VARBINARY(17) NOT NULL,
+    value VARBINARY(17) NOT NULL UNIQUE,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     comment VARCHAR(255),
     valid_until DATETIME,
@@ -18,7 +18,7 @@ CREATE TABLE ip_entries (
 
 CREATE TABLE domain_entries (
     id BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    value VARCHAR(255) NOT NULL,
+    value VARCHAR(255) NOT NULL UNIQUE,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     comment VARCHAR(255),
     valid_until DATETIME,
@@ -28,7 +28,7 @@ CREATE TABLE domain_entries (
 
 CREATE TABLE url_entries (
     id BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    value VARCHAR(8192) NOT NULL,
+    value VARCHAR(8192) NOT NULL UNIQUE,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     comment VARCHAR(255),
     valid_until DATETIME,

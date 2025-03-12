@@ -9,7 +9,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/feed-me/utils"
+	"github.com/feed-me/types"
 )
 
 type FeedsType string
@@ -55,16 +55,35 @@ func (ns NullFeedsType) Value() (driver.Value, error) {
 	return string(ns.FeedsType), nil
 }
 
+type DomainEntry struct {
+	ID         int64          `json:"id"`
+	Value      string         `json:"value"`
+	Enabled    bool           `json:"enabled"`
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	FeedID     int32          `json:"feed_id"`
+}
+
 type Feed struct {
-	ID       int32     `json:"id"`
-	Name     string    `json:"name"`
-	IsPublic bool      `json:"is_public"`
-	Type     FeedsType `json:"type"`
+	ID       int32          `json:"id"`
+	Name     string         `json:"name"`
+	Comment  sql.NullString `json:"comment"`
+	IsPublic bool           `json:"is_public"`
+	Type     FeedsType      `json:"type"`
 }
 
 type IpEntry struct {
 	ID         int64          `json:"id"`
-	Value      utils.MyNet    `json:"value"`
+	Value      types.MyNet    `json:"value"`
+	Enabled    bool           `json:"enabled"`
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	FeedID     int32          `json:"feed_id"`
+}
+
+type UrlEntry struct {
+	ID         int64          `json:"id"`
+	Value      string         `json:"value"`
 	Enabled    bool           `json:"enabled"`
 	Comment    sql.NullString `json:"comment"`
 	ValidUntil sql.NullTime   `json:"valid_until"`

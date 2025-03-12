@@ -9,22 +9,83 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/feed-me/utils"
+	"github.com/feed-me/types"
 )
 
-const createFeed = `-- name: CreateFeed :exec
-INSERT INTO feeds (name, is_public, type) VALUES (?, ?, ?)
+const createFeed = `-- name: CreateFeed :execresult
+INSERT INTO feeds (name, comment, is_public, type) VALUES (?, ?, ?, ?)
 `
 
 type CreateFeedParams struct {
-	Name     string    `json:"name"`
-	IsPublic bool      `json:"is_public"`
-	Type     FeedsType `json:"type"`
+	Name     string         `json:"name"`
+	Comment  sql.NullString `json:"comment"`
+	IsPublic bool           `json:"is_public"`
+	Type     FeedsType      `json:"type"`
 }
 
-func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) error {
-	_, err := q.db.ExecContext(ctx, createFeed, arg.Name, arg.IsPublic, arg.Type)
-	return err
+func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createFeed,
+		arg.Name,
+		arg.Comment,
+		arg.IsPublic,
+		arg.Type,
+	)
+}
+
+const editDomainEntryById = `-- name: EditDomainEntryById :execresult
+UPDATE domain_entries SET comment = ?, valid_until = ? WHERE id = ?
+`
+
+type EditDomainEntryByIdParams struct {
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	ID         int64          `json:"id"`
+}
+
+func (q *Queries) EditDomainEntryById(ctx context.Context, arg EditDomainEntryByIdParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, editDomainEntryById, arg.Comment, arg.ValidUntil, arg.ID)
+}
+
+const editFeedById = `-- name: EditFeedById :execresult
+UPDATE feeds SET comment = ?, is_public = ? WHERE id = ?
+`
+
+type EditFeedByIdParams struct {
+	Comment  sql.NullString `json:"comment"`
+	IsPublic bool           `json:"is_public"`
+	ID       int32          `json:"id"`
+}
+
+func (q *Queries) EditFeedById(ctx context.Context, arg EditFeedByIdParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, editFeedById, arg.Comment, arg.IsPublic, arg.ID)
+}
+
+const editIPEntryById = `-- name: EditIPEntryById :execresult
+UPDATE ip_entries SET comment = ?, valid_until = ? WHERE id = ?
+`
+
+type EditIPEntryByIdParams struct {
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	ID         int64          `json:"id"`
+}
+
+func (q *Queries) EditIPEntryById(ctx context.Context, arg EditIPEntryByIdParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, editIPEntryById, arg.Comment, arg.ValidUntil, arg.ID)
+}
+
+const editURLEntryById = `-- name: EditURLEntryById :execresult
+UPDATE url_entries SET comment = ?, valid_until = ? WHERE id = ?
+`
+
+type EditURLEntryByIdParams struct {
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	ID         int64          `json:"id"`
+}
+
+func (q *Queries) EditURLEntryById(ctx context.Context, arg EditURLEntryByIdParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, editURLEntryById, arg.Comment, arg.ValidUntil, arg.ID)
 }
 
 const getDomainEnabledEntries = `-- name: GetDomainEnabledEntries :many
@@ -61,7 +122,7 @@ func (q *Queries) GetDomainEnabledEntries(ctx context.Context, arg GetDomainEnab
 }
 
 const getFeedById = `-- name: GetFeedById :one
-SELECT id, name, is_public, type FROM feeds WHERE id = ?
+SELECT id, name, comment, is_public, type FROM feeds WHERE id = ?
 `
 
 func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
@@ -70,6 +131,7 @@ func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Comment,
 		&i.IsPublic,
 		&i.Type,
 	)
@@ -77,7 +139,7 @@ func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
 }
 
 const getFeedByName = `-- name: GetFeedByName :one
-SELECT id, name, is_public, type FROM feeds WHERE name = ?
+SELECT id, name, comment, is_public, type FROM feeds WHERE name = ?
 `
 
 func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) {
@@ -86,6 +148,7 @@ func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) 
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
+		&i.Comment,
 		&i.IsPublic,
 		&i.Type,
 	)
@@ -113,15 +176,15 @@ type GetIPEnabledEntriesParams struct {
 	ValidUntil sql.NullTime `json:"valid_until"`
 }
 
-func (q *Queries) GetIPEnabledEntries(ctx context.Context, arg GetIPEnabledEntriesParams) ([]utils.MyNet, error) {
+func (q *Queries) GetIPEnabledEntries(ctx context.Context, arg GetIPEnabledEntriesParams) ([]types.MyNet, error) {
 	rows, err := q.db.QueryContext(ctx, getIPEnabledEntries, arg.Enabled, arg.FeedID, arg.ValidUntil)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []utils.MyNet
+	var items []types.MyNet
 	for rows.Next() {
-		var value utils.MyNet
+		var value types.MyNet
 		if err := rows.Scan(&value); err != nil {
 			return nil, err
 		}
@@ -201,23 +264,102 @@ func (q *Queries) GetUserByName(ctx context.Context, name string) (User, error) 
 	return i, err
 }
 
-const insertIPEntry = `-- name: InsertIPEntry :exec
-INSERT INTO ip_entries (value, valid_until, feed_id) VALUES (?, ?, ?)
+const insertDomainEntry = `-- name: InsertDomainEntry :execresult
+INSERT INTO domain_entries (value, comment, valid_until, feed_id) VALUES (?, ?, ?, ?)
+`
+
+type InsertDomainEntryParams struct {
+	Value      string         `json:"value"`
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	FeedID     int32          `json:"feed_id"`
+}
+
+func (q *Queries) InsertDomainEntry(ctx context.Context, arg InsertDomainEntryParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, insertDomainEntry,
+		arg.Value,
+		arg.Comment,
+		arg.ValidUntil,
+		arg.FeedID,
+	)
+}
+
+const insertIPEntry = `-- name: InsertIPEntry :execresult
+INSERT INTO ip_entries (value, comment, valid_until, feed_id) VALUES (?, ?, ?, ?)
 `
 
 type InsertIPEntryParams struct {
-	Value      utils.MyNet  `json:"value"`
-	ValidUntil sql.NullTime `json:"valid_until"`
-	FeedID     int32        `json:"feed_id"`
+	Value      types.MyNet    `json:"value"`
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	FeedID     int32          `json:"feed_id"`
 }
 
-func (q *Queries) InsertIPEntry(ctx context.Context, arg InsertIPEntryParams) error {
-	_, err := q.db.ExecContext(ctx, insertIPEntry, arg.Value, arg.ValidUntil, arg.FeedID)
-	return err
+func (q *Queries) InsertIPEntry(ctx context.Context, arg InsertIPEntryParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, insertIPEntry,
+		arg.Value,
+		arg.Comment,
+		arg.ValidUntil,
+		arg.FeedID,
+	)
+}
+
+const insertURLEntry = `-- name: InsertURLEntry :execresult
+INSERT INTO url_entries (value, comment, valid_until, feed_id) VALUES (?, ?, ?, ?)
+`
+
+type InsertURLEntryParams struct {
+	Value      string         `json:"value"`
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	FeedID     int32          `json:"feed_id"`
+}
+
+func (q *Queries) InsertURLEntry(ctx context.Context, arg InsertURLEntryParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, insertURLEntry,
+		arg.Value,
+		arg.Comment,
+		arg.ValidUntil,
+		arg.FeedID,
+	)
+}
+
+const listDomainEntries = `-- name: ListDomainEntries :many
+SELECT id, value, enabled, comment, valid_until, feed_id FROM domain_entries WHERE feed_id = ?
+`
+
+func (q *Queries) ListDomainEntries(ctx context.Context, feedID int32) ([]DomainEntry, error) {
+	rows, err := q.db.QueryContext(ctx, listDomainEntries, feedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DomainEntry
+	for rows.Next() {
+		var i DomainEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.Value,
+			&i.Enabled,
+			&i.Comment,
+			&i.ValidUntil,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFeeds = `-- name: ListFeeds :many
-SELECT id, name, is_public, type FROM feeds
+SELECT id, name, comment, is_public, type FROM feeds
 `
 
 func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
@@ -232,6 +374,7 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Comment,
 			&i.IsPublic,
 			&i.Type,
 		); err != nil {
@@ -261,6 +404,40 @@ func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, e
 	var items []IpEntry
 	for rows.Next() {
 		var i IpEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.Value,
+			&i.Enabled,
+			&i.Comment,
+			&i.ValidUntil,
+			&i.FeedID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listURLEntries = `-- name: ListURLEntries :many
+SELECT id, value, enabled, comment, valid_until, feed_id FROM url_entries WHERE feed_id = ?
+`
+
+func (q *Queries) ListURLEntries(ctx context.Context, feedID int32) ([]UrlEntry, error) {
+	rows, err := q.db.QueryContext(ctx, listURLEntries, feedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UrlEntry
+	for rows.Next() {
+		var i UrlEntry
 		if err := rows.Scan(
 			&i.ID,
 			&i.Value,
@@ -312,4 +489,36 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeDomainEntry = `-- name: RemoveDomainEntry :execresult
+DELETE FROM domain_entries WHERE id = ?
+`
+
+func (q *Queries) RemoveDomainEntry(ctx context.Context, id int64) (sql.Result, error) {
+	return q.db.ExecContext(ctx, removeDomainEntry, id)
+}
+
+const removeFeedById = `-- name: RemoveFeedById :execresult
+DELETE FROM feeds WHERE id = ?
+`
+
+func (q *Queries) RemoveFeedById(ctx context.Context, id int32) (sql.Result, error) {
+	return q.db.ExecContext(ctx, removeFeedById, id)
+}
+
+const removeIPEntry = `-- name: RemoveIPEntry :execresult
+DELETE FROM ip_entries WHERE id = ?
+`
+
+func (q *Queries) RemoveIPEntry(ctx context.Context, id int64) (sql.Result, error) {
+	return q.db.ExecContext(ctx, removeIPEntry, id)
+}
+
+const removeURLEntry = `-- name: RemoveURLEntry :execresult
+DELETE FROM url_entries WHERE id = ?
+`
+
+func (q *Queries) RemoveURLEntry(ctx context.Context, id int64) (sql.Result, error) {
+	return q.db.ExecContext(ctx, removeURLEntry, id)
 }
