@@ -12,7 +12,7 @@ type EntryController struct {
 	DB *sql.DB
 }
 
-func (ctrl EntryController) ListIPEntries(c *fiber.Ctx) error {
+func (ctrl *EntryController) ListIPEntries(c *fiber.Ctx) error {
 	queries := database.New(ctrl.DB)
 	feed, err := queries.GetFeedByName(c.Context(), c.Params("name"))
 	if err != nil {
@@ -28,9 +28,9 @@ func (ctrl EntryController) ListIPEntries(c *fiber.Ctx) error {
 	return c.JSON(entries)
 }
 
-func (ctrl EntryController) AddIPEntry(c *fiber.Ctx) error {
+func (ctrl *EntryController) AddIPEntry(c *fiber.Ctx) error {
 	var req database.InsertIPEntryParams
-	if err := c.BodyParser(req); err != nil {
+	if err := c.BodyParser(&req); err != nil {
 		return err
 	}
 	queries := database.New(ctrl.DB)

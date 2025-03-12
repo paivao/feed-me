@@ -51,11 +51,13 @@ func main() {
 	})
 	api.Post("/login", userController.Login)
 
-	api.Put("/feed/create", feedController.CreateFeed)
-	api.Get("/feed/list", feedController.ListFeeds)
+	feedGroup := api.Group("/feed", userController.UserLoggedMiddleware)
+	feedGroup.Put("/create", feedController.CreateFeed)
+	feedGroup.Get("/list", feedController.ListFeeds)
 
-	api.Get("/entry/ip/:name/", entryController.ListIPEntries)
-	api.Get("/entry/ip/:name/create", entryController.AddIPEntry)
+	entryGroup := api.Group("/entry", userController.UserLoggedMiddleware)
+	entryGroup.Get("/ip/:name/", entryController.ListIPEntries)
+	entryGroup.Get("/ip/:name/create", entryController.AddIPEntry)
 
 	app.Mount("/api", api)
 
@@ -69,16 +71,16 @@ func main() {
 func exportBasicAuth(c *fiber.Ctx) error {
 	auth := c.Get(fiber.HeaderAuthorization)
 	if !strings.HasPrefix(auth, "basic ") {
-		return nil
+		return c.Next()
 	}
 	raw, err := base64.StdEncoding.DecodeString(auth[6:])
 	if err != nil {
-		return nil
+		return fiber.ErrBadRequest
 	}
 	userpass := string(raw)
 	index := strings.Index(userpass, ":")
 	if index == -1 {
-		return nil
+		return fiber.ErrBadRequest
 	}
 	c.Locals("username", userpass[:index])
 	c.Locals("password", userpass[index+1:])

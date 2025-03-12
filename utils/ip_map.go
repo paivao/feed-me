@@ -1,14 +1,18 @@
 package utils
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"fmt"
 	"net"
+	"strings"
 )
 
 type MyNet struct {
 	net.IPNet
 }
+
+var ipv4Prefix = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255}
 
 func (ip *MyNet) Scan(src any) error {
 	bytes, ok := src.([]byte)
@@ -42,8 +46,29 @@ func (ip *MyNet) MarshalJSON() ([]byte, error) {
 	return []byte(ip.String()), nil
 }
 
+func isIPv4(ip net.IP) bool {
+	return len(ip) == net.IPv4len || bytes.Equal([]byte(ip)[:12], ipv4Prefix)
+}
+
 func (ip *MyNet) UnmarshalJSON(b []byte) error {
-	_, net, err := net.ParseCIDR(string(b))
+	value := string(b[1 : len(b)-1])
+	if strings.IndexByte(value, '/') == -1 {
+		calculated_ip := net.ParseIP(value)
+		if calculated_ip == nil {
+			return &net.ParseError{Type: "Unknown IP address", Text: value}
+		}
+		ip.IP = calculated_ip
+		if isIPv4(calculated_ip) {
+			ip.Mask = net.CIDRMask(net.IPv4len*8, net.IPv4len*8)
+		} else {
+			ip.Mask = net.CIDRMask(net.IPv6len*8, net.IPv6len*8)
+		}
+		return nil
+	}
+	_, net, err := net.ParseCIDR(value)
+	if err != nil {
+		return err
+	}
 	ip.IPNet = *net
-	return err
+	return nil
 }

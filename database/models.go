@@ -63,11 +63,12 @@ type Feed struct {
 }
 
 type IpEntry struct {
-	ID         int64        `json:"id"`
-	Value      utils.MyNet  `json:"value"`
-	Enabled    bool         `json:"enabled"`
-	ValidUntil sql.NullTime `json:"valid_until"`
-	FeedID     int32        `json:"feed_id"`
+	ID         int64          `json:"id"`
+	Value      utils.MyNet    `json:"value"`
+	Enabled    bool           `json:"enabled"`
+	Comment    sql.NullString `json:"comment"`
+	ValidUntil sql.NullTime   `json:"valid_until"`
+	FeedID     int32          `json:"feed_id"`
 }
 
 type User struct {

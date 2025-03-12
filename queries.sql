@@ -32,7 +32,7 @@ SELECT * FROM users WHERE id = ?;
 SELECT * FROM users WHERE name = ?;
 
 -- name: CreateFeed :exec
-INSERT INTO feeds (name, is_public, type) VALUES (?, ?, ?);
+INSERT INTO feeds (name, comment, is_public, type) VALUES (?, ?, ?, ?);
 
 -- name: InsertIPEntry :exec
-INSERT INTO ip_entries (value, valid_until, feed_id) VALUES (?, ?, ?);
+INSERT INTO ip_entries (value, comment, valid_until, feed_id) VALUES (?, ?, ?, ?);

@@ -249,7 +249,7 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 }
 
 const listIPEntries = `-- name: ListIPEntries :many
-SELECT id, value, enabled, valid_until, feed_id FROM ip_entries WHERE feed_id = ?
+SELECT id, value, enabled, comment, valid_until, feed_id FROM ip_entries WHERE feed_id = ?
 `
 
 func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, error) {
@@ -265,6 +265,7 @@ func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, e
 			&i.ID,
 			&i.Value,
 			&i.Enabled,
+			&i.Comment,
 			&i.ValidUntil,
 			&i.FeedID,
 		); err != nil {

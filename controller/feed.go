@@ -13,7 +13,7 @@ type FeedController struct {
 	DB *sql.DB
 }
 
-func (ctrl FeedController) ListFeeds(c *fiber.Ctx) error {
+func (ctrl *FeedController) ListFeeds(c *fiber.Ctx) error {
 	queries := database.New(ctrl.DB)
 	feeds, err := queries.ListFeeds(c.Context())
 	if err != nil {
@@ -22,7 +22,7 @@ func (ctrl FeedController) ListFeeds(c *fiber.Ctx) error {
 	return c.JSON(feeds)
 }
 
-func (ctrl FeedController) CreateFeed(c *fiber.Ctx) error {
+func (ctrl *FeedController) CreateFeed(c *fiber.Ctx) error {
 	var req database.CreateFeedParams
 	if err := c.BodyParser(&req); err != nil {
 		return err
@@ -35,7 +35,7 @@ func (ctrl FeedController) CreateFeed(c *fiber.Ctx) error {
 	return c.JSON(utils.NewMessage("feed criado com sucesso"))
 }
 
-func (ctrl FeedController) PrintFeed(c *fiber.Ctx) error {
+func (ctrl *FeedController) PrintFeed(c *fiber.Ctx) error {
 	queries := database.New(ctrl.DB)
 	feed, err := queries.GetFeedByName(c.Context(), c.Params("name"))
 	if err == sql.ErrNoRows {
@@ -51,7 +51,7 @@ func (ctrl FeedController) PrintFeed(c *fiber.Ctx) error {
 			return err
 		}
 		for _, ip := range entries {
-			c.Writef("%s\n", ip)
+			c.Writef("%s\n", ip.String())
 		}
 	} else {
 		var entries []string
