@@ -55,6 +55,16 @@ func (ns NullFeedsType) Value() (driver.Value, error) {
 	return string(ns.FeedsType), nil
 }
 
+func (e FeedsType) Valid() bool {
+	switch e {
+	case FeedsTypeIp,
+		FeedsTypeDomain,
+		FeedsTypeUrl:
+		return true
+	}
+	return false
+}
+
 type DomainEntry struct {
 	ID         int64          `json:"id"`
 	Value      string         `json:"value"`

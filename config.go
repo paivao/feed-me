@@ -13,9 +13,14 @@ import (
 )
 
 type Config struct {
-	Host     string
-	Port     int
-	Key      string
+	Host string
+	Port int
+	Key  string
+	Log  struct {
+		Access string
+		System string
+		Level  string
+	}
 	Database struct {
 		Driver string
 		Host   string

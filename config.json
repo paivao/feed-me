@@ -1,5 +1,9 @@
 {
     "port": 8000,
+    "log": {
+        "access": "logs/access.log",
+        "system": "logs/feedme.log"
+    },
     "database": {
         "driver": "mysql",
         "host": "localhost",

@@ -48,6 +48,7 @@ func (ctrl *UserController) UserLoggedMiddleware(c *fiber.Ctx) error {
 
 func (ctrl *UserController) Login(c *fiber.Ctx) error {
 	var userlogin UserLogin
+
 	if err := c.BodyParser(&userlogin); err != nil {
 		return err
 	}

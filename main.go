@@ -1,39 +1,74 @@
 package main
 
 import (
+	"embed"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/feed-me/controller"
 	"github.com/feed-me/types"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/session"
+)
+
+var (
+	log_levels = map[string]log.Level{
+		"debug": log.LevelDebug,
+		"error": log.LevelError,
+		"fatal": log.LevelFatal,
+		"info":  log.LevelInfo,
+		"panic": log.LevelPanic,
+		"trace": log.LevelTrace,
+		"warn":  log.LevelWarn,
+	}
 )
 
 func main() {
+	//go:embed sql/schema/*
+	var dbMigrations embed.FS
+
 	conf, err := LoadConfiguration("config.json")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not load configuration: %v\n", err)
 	}
 
 	db, err := conf.ConnectDB()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("could not connect to database: %v\n", err)
 	}
 
-	store := session.New()
+	log.Info("Managing migrations")
+
+	accessLog, err := os.OpenFile(conf.Log.Access, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
+	if err != nil {
+		log.Fatalf("error opening access log file: %v", err)
+	}
+
+	level, ok := log_levels[conf.Log.Level]
+	if !ok {
+		log.Fatalf("log level not defined: %s", conf.Log.Level)
+	}
+
+	systemLog, err := os.OpenFile(conf.Log.System, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0640)
+	if err != nil {
+		log.Fatalf("error opening access log file: %v", err)
+	}
+
+	log.SetLevel(level)
+	log.SetOutput(systemLog)
 
 	// Fiber instance
 	app := fiber.New()
 	app.Use(logger.New(logger.Config{
 		Format:     "${time} ${ip} ${method} \"${url}\" ${protocol} ${status} ${bytesSent} \"${referer}\" \"${ua}\" ${error}\n",
 		TimeFormat: time.RFC3339,
+		Output:     accessLog,
 	}))
 	app.Use(encryptcookie.New(encryptcookie.Config{
 		Key: conf.Key,
@@ -53,26 +88,16 @@ func main() {
 	api.Post("/login", userController.Login)
 
 	feedGroup := api.Group("/feed", userController.UserLoggedMiddleware)
-	feedGroup.Put("", feedController.CreateFeed)
 	feedGroup.Get("", feedController.ListFeeds)
+	feedGroup.Put("", feedController.CreateFeed)
 	feedGroup.Post("/:id", feedController.EditFeed)
 	feedGroup.Delete("/:id", feedController.DeleteFeed)
 
 	entryGroup := api.Group("/entry", userController.UserLoggedMiddleware)
-	entryGroup.Get("/ip/:feed/", entryController.ListIPEntries)
-	entryGroup.Put("/ip/:feed/", entryController.AddIPEntry)
-	entryGroup.Post("/ip/:feed/:id", entryController.EditIPEntry)
-	entryGroup.Delete("/ip/:feed/:id", entryController.DeleteIPEntry)
-
-	entryGroup.Get("/domain/:feed/", entryController.ListDomainEntries)
-	entryGroup.Put("/domain/:feed/", entryController.AddDomainEntry)
-	entryGroup.Post("/domain/:feed/:id", entryController.EditDomainEntry)
-	entryGroup.Delete("/domain/:feed/:id", entryController.DeleteDomainEntry)
-
-	entryGroup.Get("/url/:feed/", entryController.ListURLEntries)
-	entryGroup.Put("/url/:feed/", entryController.AddURLEntry)
-	entryGroup.Post("/url/:feed/:id", entryController.EditURLEntry)
-	entryGroup.Delete("/url/:feed/:id", entryController.DeleteURLEntry)
+	entryGroup.Get("/:type/:feed_id/", entryController.ListEntries)
+	entryGroup.Put("/:type/:feed_id/", entryController.AddEntry)
+	entryGroup.Post("/:type/:feed_id/:id", entryController.EditEntry)
+	entryGroup.Delete("/:type/:feed_id/:id", entryController.DeleteEntry)
 
 	app.Mount("/api", api)
 
