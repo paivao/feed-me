@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/feed-me/database"
-	"github.com/feed-me/types"
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -67,5 +66,14 @@ func (ctrl *UserController) Login(c *fiber.Ctx) error {
 	if err := sess.Save(); err != nil {
 		return err
 	}
-	return c.JSON(types.NewMessage("logado com sucesso"))
+	return c.JSON(fiber.Map{"username": user.Name})
+}
+
+func (ctrl *UserController) Logout(c *fiber.Ctx) error {
+	sess, err := ctrl.Store.Get(c)
+	if err != nil {
+		return err
+	}
+	sess.Delete(userSessionField)
+	return c.JSON(fiber.Map{"message": "success"})
 }

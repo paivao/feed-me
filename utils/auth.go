@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"log"
 
 	"github.com/feed-me/database"
 )
@@ -20,6 +21,7 @@ func GetUser(ctx context.Context, queries *database.Queries, username, password 
 	user, err := queries.GetUserByName(ctx, username)
 	var hash string
 	if err != nil {
+		log.Fatalf("error: %v", err)
 		hash = defaultHash
 	} else {
 		hash = user.PasswordHash

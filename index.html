@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@2.8.2/dist/alpine.min.js" defer></script>
+    <script src="/static/app.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css" rel="stylesheet">
+    <title>Feed-Me</title>
+</head>
+
+<body>
+
+    <div x-data="app()" class="container is-max-desktop mt-6">
+        <!-- Authentication Section -->
+        <div x-show="!isAuthenticated" class="box mb-6">
+            <h2 class="title is-3 mb-4">Login</h2>
+            <form @submit.prevent="login()">
+                <div class="field mb-4">
+                    <label for="input-username" class="label">Usuário</label>
+                    <div class="control">
+                        <input type="text" x-model="loginData.username" id="input-username" class="input" required>
+                    </div>
+                </div>
+                <div class="field mb-4">
+                    <label for="input-password" class="label">Senha</label>
+                    <div class="control">
+                        <input type="password" x-model="loginData.password" id="input-password" class="input" required>
+                    </div>
+                </div>
+                <button type="submit" class="button is-link is-fullwidth">Login</button>
+            </form>
+        </div>
+
+        <!-- Show user info and logout -->
+        <div x-show="isAuthenticated" class="box mb-6">
+            <h2 class="title is-3">Welcome, <span x-text="user.name"></span></h2>
+            <button @click="logout()" class="button is-danger is-fullwidth">Logout</button>
+        </div>
+
+        <!-- CRUD Operations -->
+        <div x-show="isAuthenticated">
+            <h2 class="title is-3 mb-4">Manage Feeds and Entries</h2>
+
+            <!-- Create Category -->
+            <div class="box mb-6">
+                <div class="field">
+                    <label for="input-feed-name" class="label">Novo Feed</label>
+                    <div class="control">
+                        <input type="text" x-model="newFeed.name" placeholder="Nome do novo feed" class="input"
+                            id="input-feed-name" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="input-feed-description" class="label">Descrição</label>
+                    <div class="control">
+                        <input type="text" x-model="newFeed.description" placeholder="Comentário" class="input"
+                            id="input-feed-description" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="input-feed-type" class="label">Tipo de Feed</label>
+                    <div class="select" id="input-feed-type">
+                        <select x-model="newFeed.feed_type">
+                            <template x-for="feed in feed_types">
+                                <option x-text="feed"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="checkbox">
+                        <input type="checkbox" x-model="newFeed.is_public" /> É público?
+                    </label>
+                </div>
+                <button @click="createFeed()" class="button is-success is-fullwidth">Adicionar Feed</button>
+            </div>
+
+            <!-- Category List -->
+            <div>
+                <template x-for="feed in feeds" :key="feed.id">
+                    <div class="box mb-4">
+                        <div class="columns is-mobile is-vcentered" :class="{ 'has-background-primary': feed === selectedFeed }">
+                            <div class="column">
+                                <span class="title is-4" x-text="feed.name"></span>
+                            </div>
+                            <div class="column is-narrow">
+                                <button @click="removeFeed(feed.id)" class="button is-danger is-small">Delete
+                                    Category</button>
+                                <button @click="showEntries(feed)" class="button is-info is-small ml-2">View
+                                    Items</button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <h3 class="subtitle is-5 mb-3">Entradas</h3>
+            <div class="field mb-4">
+                <input type="text" x-model="newEntry.value" placeholder="New Entry value" class="input" required>
+            </div>
+            <button @click="createEntry(category)" class="button is-primary is-small mb-4">Add Entry</button>
+            <div class="list">
+                <template x-for="entry in entries" :key="entry.id">
+                    <!-- Item List -->
+                    <div class="list-item">
+                        <div class="columns is-mobile is-vcentered">
+                            <div class="column">
+                                <span x-text="entry.name"></span>
+                            </div>
+                            <div class="column is-narrow">
+                                <button @click="editEntry(entry)" class="button is-warning is-small">Edit</button>
+                                <button @click="removeEntry(item)"
+                                    class="button is-danger is-small ml-2">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+            </template>
+        </div>
+    </div>
+
+    </div>
+
+
+
+</body>
+
+</html>

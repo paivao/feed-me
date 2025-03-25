@@ -1,15 +1,17 @@
 {
     "port": 8000,
+    "base_path": "/",
     "log": {
         "access": "logs/access.log",
-        "system": "logs/feedme.log"
+        "system": "logs/feedme.log",
+        "level": "debug"
     },
     "database": {
         "driver": "mysql",
         "host": "localhost",
-        "name": "gofeed",
-        "user": "gofeed",
-        "pass": "gofeed"
+        "name": "feedme",
+        "user": "feedme",
+        "pass": "gpFrZFs1kAce8qtp5dnHxAumWtlFkWy5"
     },
     "key": "LkU7gn9iLJ05rHKtGp1fpehCtFDsKiLY"
 }

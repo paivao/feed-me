@@ -3,6 +3,7 @@ package controller
 import (
 	"database/sql"
 	"net/url"
+	"strconv"
 
 	"github.com/feed-me/database"
 	"github.com/feed-me/types"
@@ -34,11 +35,12 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 	if size > 0 {
 		offset *= size
 	}
+	feed_id, err := c.ParamsInt("feed")
 
 	queries := database.New(ctrl.DB)
-	feed, err := queries.GetFeedByNameAndType(c.Context(), c.Params("name"), feedType)
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
 	if err == sql.ErrNoRows {
-		ctxlog.Warnf("feed %s of type %s not found", c.Params("name"), feedType)
+		ctxlog.Warnf("feed %s of type %s not found", c.Params("feed"), feedType)
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
 	}
 	if err != nil {
@@ -88,7 +90,7 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	}
 	var req struct {
 		value       string
-		comment     sql.NullString
+		description sql.NullString
 		valid_until sql.NullTime
 	}
 	if err := c.BodyParser(&req); err != nil {
@@ -96,7 +98,8 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 	queries := database.New(ctrl.DB)
-	feed, err := queries.GetFeedByNameAndType(c.Context(), c.Params("name"), feedType)
+	feed_id, err := c.ParamsInt("feed")
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
 	}
@@ -113,17 +116,17 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 			ctxlog.Debugf("could not convert to ip: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "incorrect ip/network")
 		}
-		result, err = queries.InsertIPEntry(c.Context(), my_net, req.comment, req.valid_until, feed.ID)
+		result, err = queries.InsertIPEntry(c.Context(), my_net, req.description, req.valid_until, feed.ID)
 	case database.FeedsTypeDomain:
 
-		result, err = queries.InsertDomainEntry(c.Context(), req.value, req.comment, req.valid_until, feed.ID)
+		result, err = queries.InsertDomainEntry(c.Context(), req.value, req.description, req.valid_until, feed.ID)
 	case database.FeedsTypeUrl:
 		_, err := url.Parse(req.value)
 		if err != nil {
 			ctxlog.Warnf("error parsing url: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "could not parse url")
 		}
-		result, err = queries.InsertURLEntry(c.Context(), req.value, req.comment, req.valid_until, feed.ID)
+		result, err = queries.InsertURLEntry(c.Context(), req.value, req.description, req.valid_until, feed.ID)
 	}
 	if err != nil {
 		ctxlog.Warnf("error in creating new entry: %v", err)
@@ -132,4 +135,147 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	id, err := result.LastInsertId()
 	ctxlog.Infof("%s added by %s [%s]: %s", feedType, c.Locals("userid"), c.Context().RemoteIP().String(), req.value)
 	return c.JSON(fiber.Map{"message": "entry added", "id": id})
+}
+
+func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
+	ctxlog := log.WithContext(c.Context())
+
+	id, err := strconv.ParseInt(c.Params("entry", "0"), 10, 64)
+	if err != nil {
+		ctxlog.Warnf("incorrect entry id: %s, %v", c.Params("entry"), err)
+		return fiber.NewError(fiber.StatusBadRequest, "entry is not integer")
+	}
+
+	feedType := database.FeedsType(c.Params("type"))
+	if !feedType.Valid() {
+		ctxlog.Warnf("incorrect feed type: %v", feedType)
+		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
+	}
+	var req struct {
+		enabled     sql.NullBool
+		description sql.NullString
+		valid_until sql.NullTime
+	}
+	if err := c.BodyParser(&req); err != nil {
+		ctxlog.Warnf("incorrect body: %v", err)
+		return fiber.ErrBadRequest
+	}
+	queries := database.New(ctrl.DB)
+	feed_id, err := c.ParamsInt("feed")
+
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusNotFound, "feed not found")
+	}
+	if err != nil {
+		ctxlog.Warnf("database error: %v", err)
+		return fiber.ErrBadRequest
+	}
+	switch feedType {
+	case database.FeedsTypeIp:
+		ipnet, err := queries.GetIPEntryById(c.Context(), id, feed.ID)
+		if err == sql.ErrNoRows {
+			return fiber.ErrNotFound
+		}
+		if err != nil {
+			ctxlog.Warnf("database error: %v", err)
+			return fiber.ErrBadRequest
+		}
+		if req.enabled.Valid {
+			ipnet.Enabled = req.enabled.Bool
+		}
+		if req.description.Valid {
+			ipnet.Description = req.description
+		}
+		err = queries.EditIPEntryById(c.Context(), ipnet.Enabled, ipnet.Description, req.valid_until, ipnet.ID)
+	case database.FeedsTypeDomain:
+		domain, err := queries.GetDomainEntryById(c.Context(), id, feed.ID)
+		if err == sql.ErrNoRows {
+			return fiber.ErrNotFound
+		}
+		if err != nil {
+			ctxlog.Warnf("database error: %v", err)
+			return fiber.ErrBadRequest
+		}
+		if req.enabled.Valid {
+			domain.Enabled = req.enabled.Bool
+		}
+		if req.description.Valid {
+			domain.Description = req.description
+		}
+		err = queries.EditDomainEntryById(c.Context(), domain.Enabled, domain.Description, req.valid_until, domain.ID)
+	case database.FeedsTypeUrl:
+		url, err := queries.GetURLEntryById(c.Context(), id, feed.ID)
+		if err == sql.ErrNoRows {
+			return fiber.ErrNotFound
+		}
+		if err != nil {
+			ctxlog.Warnf("database error: %v", err)
+			return fiber.ErrBadRequest
+		}
+		if req.enabled.Valid {
+			url.Enabled = req.enabled.Bool
+		}
+		if req.description.Valid {
+			url.Description = req.description
+		}
+		err = queries.EditDomainEntryById(c.Context(), url.Enabled, url.Description, req.valid_until, url.ID)
+	}
+	if err == sql.ErrNoRows {
+		ctxlog.Warnf("error in removing entry: %v", err)
+		return fiber.NewError(fiber.StatusNotFound, "entry not found")
+	}
+	if err != nil {
+		ctxlog.Warnf("error in editing entry: %v", err)
+		return fiber.NewError(fiber.StatusBadRequest, "could not edit entry")
+	}
+	ctxlog.Infof("%s edited by %s [%s]: %d/%d", feedType, c.Locals("user"), c.Context().RemoteIP().String(), id, feed.ID)
+	return c.JSON(fiber.Map{"message": "entry editted", "id": id})
+}
+
+func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
+	ctxlog := log.WithContext(c.Context())
+
+	id, err := strconv.ParseInt(c.Params("entry", "0"), 10, 64)
+	if err != nil {
+		ctxlog.Warnf("incorrect entry id: %s, %v", c.Params("entry"), err)
+		return fiber.NewError(fiber.StatusBadRequest, "entry is not integer")
+	}
+
+	feedType := database.FeedsType(c.Params("type"))
+	if !feedType.Valid() {
+		ctxlog.Warnf("incorrect feed type: %v", feedType)
+		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
+	}
+
+	queries := database.New(ctrl.DB)
+	feed_id, err := c.ParamsInt("feed")
+
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
+	if err == sql.ErrNoRows {
+		return fiber.NewError(fiber.StatusNotFound, "feed not found")
+	}
+	if err != nil {
+		ctxlog.Warnf("database error: %v", err)
+		return fiber.ErrBadRequest
+	}
+
+	switch feedType {
+	case database.FeedsTypeIp:
+		err = queries.RemoveIPEntry(c.Context(), id, feed.ID)
+	case database.FeedsTypeDomain:
+		err = queries.RemoveDomainEntry(c.Context(), id, feed.ID)
+	case database.FeedsTypeUrl:
+		err = queries.RemoveURLEntry(c.Context(), id, feed.ID)
+	}
+	if err == sql.ErrNoRows {
+		ctxlog.Warnf("error in removing entry: %v", err)
+		return fiber.NewError(fiber.StatusNotFound, "entry not found")
+	}
+	if err != nil {
+		ctxlog.Warnf("error in removing entry: %v", err)
+		return fiber.NewError(fiber.StatusBadRequest, "could not remove entry")
+	}
+	ctxlog.Infof("%s removed by %s [%s]: %d/%d", feedType, c.Locals("user"), c.Context().RemoteIP().String(), id, feed.ID)
+	return c.JSON(fiber.Map{"message": "entry removed", "id": id})
 }

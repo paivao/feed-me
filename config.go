@@ -13,10 +13,11 @@ import (
 )
 
 type Config struct {
-	Host string
-	Port int
-	Key  string
-	Log  struct {
+	Host     string
+	Port     int
+	Key      string
+	BasePath string `json:"base_path"`
+	Log      struct {
 		Access string
 		System string
 		Level  string

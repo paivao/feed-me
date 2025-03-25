@@ -11,28 +11,29 @@ import (
 )
 
 const createFeed = `-- name: CreateFeed :execresult
-INSERT INTO feeds (name, comment, is_public, type) VALUES (?, ?, ?, ?)
+INSERT INTO feeds (name, description, is_public, type) VALUES (?, ?, ?, ?)
 `
 
-func (q *Queries) CreateFeed(ctx context.Context, name string, comment sql.NullString, isPublic bool, type_ FeedsType) (sql.Result, error) {
+func (q *Queries) CreateFeed(ctx context.Context, name string, description sql.NullString, isPublic bool, type_ FeedsType) (sql.Result, error) {
 	return q.db.ExecContext(ctx, createFeed,
 		name,
-		comment,
+		description,
 		isPublic,
 		type_,
 	)
 }
 
-const editFeedById = `-- name: EditFeedById :execresult
-UPDATE feeds SET comment = ?, is_public = ? WHERE id = ?
+const editFeedById = `-- name: EditFeedById :exec
+UPDATE feeds SET description = ?, is_public = ? WHERE id = ?
 `
 
-func (q *Queries) EditFeedById(ctx context.Context, comment sql.NullString, isPublic bool, iD int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, editFeedById, comment, isPublic, iD)
+func (q *Queries) EditFeedById(ctx context.Context, description sql.NullString, isPublic bool, iD int32) error {
+	_, err := q.db.ExecContext(ctx, editFeedById, description, isPublic, iD)
+	return err
 }
 
 const getFeedById = `-- name: GetFeedById :one
-SELECT id, name, comment, is_public, type FROM feeds WHERE id = ?
+SELECT id, name, description, is_public, type FROM feeds WHERE id = ?
 `
 
 func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
@@ -41,7 +42,24 @@ func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Comment,
+		&i.Description,
+		&i.IsPublic,
+		&i.Type,
+	)
+	return i, err
+}
+
+const getFeedByIdAndType = `-- name: GetFeedByIdAndType :one
+SELECT id, name, description, is_public, type FROM feeds WHERE id = ? and type = ?
+`
+
+func (q *Queries) GetFeedByIdAndType(ctx context.Context, iD int32, type_ FeedsType) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeedByIdAndType, iD, type_)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
 		&i.IsPublic,
 		&i.Type,
 	)
@@ -49,7 +67,7 @@ func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
 }
 
 const getFeedByName = `-- name: GetFeedByName :one
-SELECT id, name, comment, is_public, type FROM feeds WHERE name = ?
+SELECT id, name, description, is_public, type FROM feeds WHERE name = ?
 `
 
 func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) {
@@ -58,24 +76,7 @@ func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) 
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Comment,
-		&i.IsPublic,
-		&i.Type,
-	)
-	return i, err
-}
-
-const getFeedByNameAndType = `-- name: GetFeedByNameAndType :one
-SELECT id, name, comment, is_public, type FROM feeds WHERE name = ? and type = ?
-`
-
-func (q *Queries) GetFeedByNameAndType(ctx context.Context, name string, type_ FeedsType) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getFeedByNameAndType, name, type_)
-	var i Feed
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Comment,
+		&i.Description,
 		&i.IsPublic,
 		&i.Type,
 	)
@@ -94,7 +95,7 @@ func (q *Queries) GetFeedTypeById(ctx context.Context, id int32) (FeedsType, err
 }
 
 const listFeeds = `-- name: ListFeeds :many
-SELECT id, name, comment, is_public, type FROM feeds
+SELECT id, name, description, is_public, type FROM feeds
 `
 
 func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
@@ -109,7 +110,7 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.Comment,
+			&i.Description,
 			&i.IsPublic,
 			&i.Type,
 		); err != nil {
@@ -126,10 +127,11 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 	return items, nil
 }
 
-const removeFeedById = `-- name: RemoveFeedById :execresult
+const removeFeedById = `-- name: RemoveFeedById :exec
 DELETE FROM feeds WHERE id = ?
 `
 
-func (q *Queries) RemoveFeedById(ctx context.Context, id int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, removeFeedById, id)
+func (q *Queries) RemoveFeedById(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, removeFeedById, id)
+	return err
 }
