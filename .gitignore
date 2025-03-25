@@ -1,4 +1,4 @@
 feed-me
 .vscode
-go.mod
 logs/*
+config.json

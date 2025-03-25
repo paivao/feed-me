@@ -1,0 +1,17 @@
+{
+    "port": 8000,
+    "base_path": "/",
+    "log": {
+        "access": "logs/access.log",
+        "system": "logs/feedme.log",
+        "level": "debug"
+    },
+    "database": {
+        "driver": "mysql",
+        "host": "localhost",
+        "name": "feedme",
+        "user": "feedme",
+        "pass": "changeme"
+    },
+    "key": "changeme"
+}
