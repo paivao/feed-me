@@ -58,7 +58,7 @@ func (ctrl *FeedController) CreateFeed(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "invalid feed type")
 	}
 	queries := database.New(ctrl.DB)
-	result, err := queries.CreateFeed(c.Context(), req.Name, utils.ConvertToSqlNull(req.Description), utils.BoolColapse(req.IsPublic, true), feed_type)
+	result, err := queries.CreateFeed(c.Context(), req.Name, utils.ConvertToNullString(req.Description), utils.BoolColapse(req.IsPublic, true), feed_type)
 	if err != nil {
 		ctxlog.Warnf("database error: %v", err)
 		return fiber.ErrBadRequest

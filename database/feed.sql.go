@@ -104,7 +104,7 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Feed
+	items := []Feed{}
 	for rows.Next() {
 		var i Feed
 		if err := rows.Scan(

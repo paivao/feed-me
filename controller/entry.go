@@ -4,15 +4,32 @@ import (
 	"database/sql"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/feed-me/database"
 	"github.com/feed-me/types"
+	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 )
 
 type EntryController struct {
 	DB *sql.DB
+}
+
+type NewEntryRequest struct {
+	Value string `json:"value"`
+	commonEntryRequest
+}
+
+type EditEntryRequest struct {
+	Enabled *bool `json:"enabled"`
+	commonEntryRequest
+}
+
+type commonEntryRequest struct {
+	Description *string    `json:"description"`
+	ValidUntil  *time.Time `json:"valid_until"`
 }
 
 func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
@@ -78,6 +95,7 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "could not retrive entries")
 	}
 	ctxlog.Debugf("%s retrieved by %s [%s]", feedType, c.Locals("userid"), c.Context().RemoteIP().String())
+	ctxlog.Debugf("%v", entries)
 	return c.JSON(entries)
 }
 
@@ -88,11 +106,7 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 		ctxlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
 	}
-	var req struct {
-		value       string
-		description sql.NullString
-		valid_until sql.NullTime
-	}
+	var req NewEntryRequest
 	if err := c.BodyParser(&req); err != nil {
 		ctxlog.Warnf("incorrect body: %v", err)
 		return fiber.ErrBadRequest
@@ -110,30 +124,31 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	var result sql.Result
 	switch feedType {
 	case database.FeedsTypeIp:
+		ctxlog.Warnf("%v", req)
 		var my_net types.MyNet
-		err = my_net.UnmarshalJSON([]byte(req.value))
+		err = my_net.FromString(req.Value)
 		if err != nil {
 			ctxlog.Debugf("could not convert to ip: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "incorrect ip/network")
 		}
-		result, err = queries.InsertIPEntry(c.Context(), my_net, req.description, req.valid_until, feed.ID)
+		result, err = queries.InsertIPEntry(c.Context(), my_net, utils.ConvertToNullString(req.Description), utils.ConvertToNullTime(req.ValidUntil), feed.ID)
 	case database.FeedsTypeDomain:
 
-		result, err = queries.InsertDomainEntry(c.Context(), req.value, req.description, req.valid_until, feed.ID)
+		result, err = queries.InsertDomainEntry(c.Context(), req.Value, utils.ConvertToNullString(req.Description), utils.ConvertToNullTime(req.ValidUntil), feed.ID)
 	case database.FeedsTypeUrl:
-		_, err := url.Parse(req.value)
+		_, err := url.Parse(req.Value)
 		if err != nil {
 			ctxlog.Warnf("error parsing url: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "could not parse url")
 		}
-		result, err = queries.InsertURLEntry(c.Context(), req.value, req.description, req.valid_until, feed.ID)
+		result, err = queries.InsertURLEntry(c.Context(), req.Value, utils.ConvertToNullString(req.Description), utils.ConvertToNullTime(req.ValidUntil), feed.ID)
 	}
 	if err != nil {
 		ctxlog.Warnf("error in creating new entry: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "could not create new entry")
 	}
 	id, err := result.LastInsertId()
-	ctxlog.Infof("%s added by %s [%s]: %s", feedType, c.Locals("userid"), c.Context().RemoteIP().String(), req.value)
+	ctxlog.Infof("%s added by %s [%s]: %s", feedType, c.Locals("userid"), c.Context().RemoteIP().String(), req.Value)
 	return c.JSON(fiber.Map{"message": "entry added", "id": id})
 }
 
@@ -151,11 +166,7 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 		ctxlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
 	}
-	var req struct {
-		enabled     sql.NullBool
-		description sql.NullString
-		valid_until sql.NullTime
-	}
+	var req EditEntryRequest
 	if err := c.BodyParser(&req); err != nil {
 		ctxlog.Warnf("incorrect body: %v", err)
 		return fiber.ErrBadRequest
@@ -181,13 +192,10 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 			ctxlog.Warnf("database error: %v", err)
 			return fiber.ErrBadRequest
 		}
-		if req.enabled.Valid {
-			ipnet.Enabled = req.enabled.Bool
+		if req.Description != nil {
+			ipnet.Description = sql.NullString{Valid: true, String: *req.Description}
 		}
-		if req.description.Valid {
-			ipnet.Description = req.description
-		}
-		err = queries.EditIPEntryById(c.Context(), ipnet.Enabled, ipnet.Description, req.valid_until, ipnet.ID)
+		err = queries.EditIPEntryById(c.Context(), utils.BoolColapse(req.Enabled, ipnet.Enabled), ipnet.Description, utils.ConvertToNullTime(req.ValidUntil), ipnet.ID)
 	case database.FeedsTypeDomain:
 		domain, err := queries.GetDomainEntryById(c.Context(), id, feed.ID)
 		if err == sql.ErrNoRows {
@@ -197,13 +205,10 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 			ctxlog.Warnf("database error: %v", err)
 			return fiber.ErrBadRequest
 		}
-		if req.enabled.Valid {
-			domain.Enabled = req.enabled.Bool
+		if req.Description != nil {
+			domain.Description = sql.NullString{Valid: true, String: *req.Description}
 		}
-		if req.description.Valid {
-			domain.Description = req.description
-		}
-		err = queries.EditDomainEntryById(c.Context(), domain.Enabled, domain.Description, req.valid_until, domain.ID)
+		err = queries.EditDomainEntryById(c.Context(), utils.BoolColapse(req.Enabled, domain.Enabled), domain.Description, utils.ConvertToNullTime(req.ValidUntil), domain.ID)
 	case database.FeedsTypeUrl:
 		url, err := queries.GetURLEntryById(c.Context(), id, feed.ID)
 		if err == sql.ErrNoRows {
@@ -213,13 +218,10 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 			ctxlog.Warnf("database error: %v", err)
 			return fiber.ErrBadRequest
 		}
-		if req.enabled.Valid {
-			url.Enabled = req.enabled.Bool
+		if req.Description != nil {
+			url.Description = sql.NullString{Valid: true, String: *req.Description}
 		}
-		if req.description.Valid {
-			url.Description = req.description
-		}
-		err = queries.EditDomainEntryById(c.Context(), url.Enabled, url.Description, req.valid_until, url.ID)
+		err = queries.EditDomainEntryById(c.Context(), utils.BoolColapse(req.Enabled, url.Enabled), url.Description, utils.ConvertToNullTime(req.ValidUntil), url.ID)
 	}
 	if err == sql.ErrNoRows {
 		ctxlog.Warnf("error in removing entry: %v", err)

@@ -40,11 +40,15 @@ func (ip MyNet) Value() (driver.Value, error) {
 }
 
 func (ip *MyNet) MarshalJSON() ([]byte, error) {
-	return []byte(ip.String()), nil
+	return []byte(fmt.Sprintf("\"%s\"", ip.ToString())), nil
 }
 
 func (ip *MyNet) UnmarshalJSON(b []byte) error {
 	value := string(b[1 : len(b)-1])
+	return ip.FromString(value)
+}
+
+func (ip *MyNet) FromString(value string) error {
 	if strings.IndexByte(value, '/') == -1 {
 		calculated_ip := net.ParseIP(value)
 		calculated_ipv4 := calculated_ip.To4()
@@ -66,4 +70,12 @@ func (ip *MyNet) UnmarshalJSON(b []byte) error {
 	}
 	ip.IPNet = *net
 	return nil
+}
+
+func (ip *MyNet) ToString() string {
+	ones, bits := ip.Mask.Size()
+	if ones == bits {
+		return ip.IP.String()
+	}
+	return ip.String()
 }

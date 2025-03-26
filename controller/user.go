@@ -66,7 +66,7 @@ func (ctrl *UserController) Login(c *fiber.Ctx) error {
 	if err := sess.Save(); err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"username": user.Name})
+	return c.JSON(fiber.Map{"name": user.Name})
 }
 
 func (ctrl *UserController) Logout(c *fiber.Ctx) error {

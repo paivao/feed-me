@@ -64,7 +64,7 @@ func (q *Queries) GetDomainEnabledEntries(ctx context.Context, feedID int32, val
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	items := []string{}
 	for rows.Next() {
 		var value string
 		if err := rows.Scan(&value); err != nil {
@@ -109,7 +109,7 @@ func (q *Queries) GetIPEnabledEntries(ctx context.Context, feedID int32, validUn
 		return nil, err
 	}
 	defer rows.Close()
-	var items []types.MyNet
+	items := []types.MyNet{}
 	for rows.Next() {
 		var value types.MyNet
 		if err := rows.Scan(&value); err != nil {
@@ -154,7 +154,7 @@ func (q *Queries) GetURLEnabledEntries(ctx context.Context, feedID int32, validU
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	items := []string{}
 	for rows.Next() {
 		var value string
 		if err := rows.Scan(&value); err != nil {
@@ -244,7 +244,7 @@ func (q *Queries) ListDomainEntries(ctx context.Context, feedID int32) ([]Domain
 		return nil, err
 	}
 	defer rows.Close()
-	var items []DomainEntry
+	items := []DomainEntry{}
 	for rows.Next() {
 		var i DomainEntry
 		if err := rows.Scan(
@@ -278,7 +278,7 @@ func (q *Queries) ListDomainEntriesWindow(ctx context.Context, feedID int32, lim
 		return nil, err
 	}
 	defer rows.Close()
-	var items []DomainEntry
+	items := []DomainEntry{}
 	for rows.Next() {
 		var i DomainEntry
 		if err := rows.Scan(
@@ -318,7 +318,7 @@ func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, e
 		return nil, err
 	}
 	defer rows.Close()
-	var items []IpEntry
+	items := []IpEntry{}
 	for rows.Next() {
 		var i IpEntry
 		if err := rows.Scan(
@@ -352,7 +352,7 @@ func (q *Queries) ListIPEntriesWindow(ctx context.Context, feedID int32, limit i
 		return nil, err
 	}
 	defer rows.Close()
-	var items []IpEntry
+	items := []IpEntry{}
 	for rows.Next() {
 		var i IpEntry
 		if err := rows.Scan(
@@ -392,7 +392,7 @@ func (q *Queries) ListURLEntries(ctx context.Context, feedID int32) ([]UrlEntry,
 		return nil, err
 	}
 	defer rows.Close()
-	var items []UrlEntry
+	items := []UrlEntry{}
 	for rows.Next() {
 		var i UrlEntry
 		if err := rows.Scan(
@@ -426,7 +426,7 @@ func (q *Queries) ListURLEntriesWindow(ctx context.Context, feedID int32, limit 
 		return nil, err
 	}
 	defer rows.Close()
-	var items []UrlEntry
+	items := []UrlEntry{}
 	for rows.Next() {
 		var i UrlEntry
 		if err := rows.Scan(
