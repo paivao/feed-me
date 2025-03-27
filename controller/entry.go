@@ -4,17 +4,17 @@ import (
 	"database/sql"
 	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/feed-me/database"
 	"github.com/feed-me/types"
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type EntryController struct {
-	DB *sql.DB
+	DB database.DBTX
 }
 
 type NewEntryRequest struct {
@@ -28,15 +28,15 @@ type EditEntryRequest struct {
 }
 
 type commonEntryRequest struct {
-	Description *string    `json:"description"`
-	ValidUntil  *time.Time `json:"valid_until"`
+	Description *string          `json:"description"`
+	ValidUntil  pgtype.Timestamp `json:"valid_until"`
 }
 
 func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 	ctxlog := log.WithContext(c.Context())
 
 	// Check feed type
-	feedType := database.FeedsType(c.Params("type"))
+	feedType := database.Feedtype(c.Params("type"))
 	if !feedType.Valid() {
 		ctxlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
@@ -55,7 +55,7 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 	feed_id, err := c.ParamsInt("feed")
 
 	queries := database.New(ctrl.DB)
-	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		ctxlog.Warnf("feed %s of type %s not found", c.Params("feed"), feedType)
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
@@ -67,19 +67,19 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 
 	var entries interface{}
 	switch feedType {
-	case database.FeedsTypeIp:
+	case database.FeedtypeIp:
 		if size > 0 {
 			entries, err = queries.ListIPEntriesWindow(c.Context(), feed.ID, int32(size), int32(offset))
 		} else {
 			entries, err = queries.ListIPEntries(c.Context(), feed.ID)
 		}
-	case database.FeedsTypeDomain:
+	case database.FeedtypeDomain:
 		if size > 0 {
 			entries, err = queries.ListDomainEntriesWindow(c.Context(), feed.ID, int32(size), int32(offset))
 		} else {
 			entries, err = queries.ListDomainEntries(c.Context(), feed.ID)
 		}
-	case database.FeedsTypeUrl:
+	case database.FeedtypeUrl:
 		if size > 0 {
 			entries, err = queries.ListURLEntriesWindow(c.Context(), feed.ID, int32(size), int32(offset))
 		} else {
@@ -95,13 +95,12 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "could not retrive entries")
 	}
 	ctxlog.Debugf("%s retrieved by %s [%s]", feedType, c.Locals("userid"), c.Context().RemoteIP().String())
-	ctxlog.Debugf("%v", entries)
 	return c.JSON(entries)
 }
 
 func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	ctxlog := log.WithContext(c.Context())
-	feedType := database.FeedsType(c.Params("type"))
+	feedType := database.Feedtype(c.Params("type"))
 	if !feedType.Valid() {
 		ctxlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
@@ -113,7 +112,7 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	}
 	queries := database.New(ctrl.DB)
 	feed_id, err := c.ParamsInt("feed")
-	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
 	}
@@ -121,35 +120,33 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 		ctxlog.Warnf("database error: %v", err)
 		return fiber.ErrBadRequest
 	}
-	var result sql.Result
+	var new_item interface{}
 	switch feedType {
-	case database.FeedsTypeIp:
-		ctxlog.Warnf("%v", req)
+	case database.FeedtypeIp:
 		var my_net types.MyNet
-		err = my_net.FromString(req.Value)
+		err = my_net.FromText([]byte(req.Value))
+		ctxlog.Warnf("%v", my_net)
 		if err != nil {
 			ctxlog.Debugf("could not convert to ip: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "incorrect ip/network")
 		}
-		result, err = queries.InsertIPEntry(c.Context(), my_net, utils.ConvertToNullString(req.Description), utils.ConvertToNullTime(req.ValidUntil), feed.ID)
-	case database.FeedsTypeDomain:
-
-		result, err = queries.InsertDomainEntry(c.Context(), req.Value, utils.ConvertToNullString(req.Description), utils.ConvertToNullTime(req.ValidUntil), feed.ID)
-	case database.FeedsTypeUrl:
+		new_item, err = queries.InsertIPEntry(c.Context(), my_net, req.Description, req.ValidUntil, feed.ID)
+	case database.FeedtypeDomain:
+		new_item, err = queries.InsertDomainEntry(c.Context(), req.Value, req.Description, req.ValidUntil, feed.ID)
+	case database.FeedtypeUrl:
 		_, err := url.Parse(req.Value)
 		if err != nil {
 			ctxlog.Warnf("error parsing url: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "could not parse url")
 		}
-		result, err = queries.InsertURLEntry(c.Context(), req.Value, utils.ConvertToNullString(req.Description), utils.ConvertToNullTime(req.ValidUntil), feed.ID)
+		new_item, err = queries.InsertURLEntry(c.Context(), req.Value, req.Description, req.ValidUntil, feed.ID)
 	}
 	if err != nil {
 		ctxlog.Warnf("error in creating new entry: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "could not create new entry")
 	}
-	id, err := result.LastInsertId()
 	ctxlog.Infof("%s added by %s [%s]: %s", feedType, c.Locals("userid"), c.Context().RemoteIP().String(), req.Value)
-	return c.JSON(fiber.Map{"message": "entry added", "id": id})
+	return c.JSON(types.JsonMessageEntry{Message: "entry added successfully", Entry: new_item})
 }
 
 func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
@@ -161,7 +158,7 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "entry is not integer")
 	}
 
-	feedType := database.FeedsType(c.Params("type"))
+	feedType := database.Feedtype(c.Params("type"))
 	if !feedType.Valid() {
 		ctxlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
@@ -174,7 +171,7 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 	queries := database.New(ctrl.DB)
 	feed_id, err := c.ParamsInt("feed")
 
-	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
 	}
@@ -183,7 +180,7 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 	switch feedType {
-	case database.FeedsTypeIp:
+	case database.FeedtypeIp:
 		ipnet, err := queries.GetIPEntryById(c.Context(), id, feed.ID)
 		if err == sql.ErrNoRows {
 			return fiber.ErrNotFound
@@ -193,10 +190,10 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 			return fiber.ErrBadRequest
 		}
 		if req.Description != nil {
-			ipnet.Description = sql.NullString{Valid: true, String: *req.Description}
+			ipnet.Description = req.Description
 		}
-		err = queries.EditIPEntryById(c.Context(), utils.BoolColapse(req.Enabled, ipnet.Enabled), ipnet.Description, utils.ConvertToNullTime(req.ValidUntil), ipnet.ID)
-	case database.FeedsTypeDomain:
+		err = queries.EditIPEntryById(c.Context(), utils.BoolColapse(req.Enabled, ipnet.Enabled), ipnet.Description, req.ValidUntil, ipnet.ID)
+	case database.FeedtypeDomain:
 		domain, err := queries.GetDomainEntryById(c.Context(), id, feed.ID)
 		if err == sql.ErrNoRows {
 			return fiber.ErrNotFound
@@ -206,10 +203,10 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 			return fiber.ErrBadRequest
 		}
 		if req.Description != nil {
-			domain.Description = sql.NullString{Valid: true, String: *req.Description}
+			domain.Description = req.Description
 		}
-		err = queries.EditDomainEntryById(c.Context(), utils.BoolColapse(req.Enabled, domain.Enabled), domain.Description, utils.ConvertToNullTime(req.ValidUntil), domain.ID)
-	case database.FeedsTypeUrl:
+		err = queries.EditDomainEntryById(c.Context(), utils.BoolColapse(req.Enabled, domain.Enabled), domain.Description, req.ValidUntil, domain.ID)
+	case database.FeedtypeUrl:
 		url, err := queries.GetURLEntryById(c.Context(), id, feed.ID)
 		if err == sql.ErrNoRows {
 			return fiber.ErrNotFound
@@ -219,9 +216,9 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 			return fiber.ErrBadRequest
 		}
 		if req.Description != nil {
-			url.Description = sql.NullString{Valid: true, String: *req.Description}
+			url.Description = req.Description
 		}
-		err = queries.EditDomainEntryById(c.Context(), utils.BoolColapse(req.Enabled, url.Enabled), url.Description, utils.ConvertToNullTime(req.ValidUntil), url.ID)
+		err = queries.EditDomainEntryById(c.Context(), utils.BoolColapse(req.Enabled, url.Enabled), url.Description, req.ValidUntil, url.ID)
 	}
 	if err == sql.ErrNoRows {
 		ctxlog.Warnf("error in removing entry: %v", err)
@@ -244,7 +241,7 @@ func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "entry is not integer")
 	}
 
-	feedType := database.FeedsType(c.Params("type"))
+	feedType := database.Feedtype(c.Params("type"))
 	if !feedType.Valid() {
 		ctxlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
@@ -253,7 +250,7 @@ func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
 	queries := database.New(ctrl.DB)
 	feed_id, err := c.ParamsInt("feed")
 
-	feed, err := queries.GetFeedByIdAndType(c.Context(), int32(feed_id), feedType)
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
 	}
@@ -263,11 +260,11 @@ func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
 	}
 
 	switch feedType {
-	case database.FeedsTypeIp:
+	case database.FeedtypeIp:
 		err = queries.RemoveIPEntry(c.Context(), id, feed.ID)
-	case database.FeedsTypeDomain:
+	case database.FeedtypeDomain:
 		err = queries.RemoveDomainEntry(c.Context(), id, feed.ID)
-	case database.FeedsTypeUrl:
+	case database.FeedtypeUrl:
 		err = queries.RemoveURLEntry(c.Context(), id, feed.ID)
 	}
 	if err == sql.ErrNoRows {

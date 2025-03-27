@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jackc/pgx/v5"
 )
 
 type Config struct {
@@ -42,12 +43,10 @@ func LoadConfiguration(filename string) (*Config, error) {
 	return &config, err
 }
 
-func (c *Config) ConnectDB() (*sql.DB, error) {
+func (c *Config) ConnectDB(ctx context.Context) (*pgx.Conn, error) {
 	switch c.Database.Driver {
-	case "mysql":
-		return sql.Open("mysql", c.getMysqlDSN())
 	case "postgres":
-		return sql.Open("postgres", c.getMysqlDSN())
+		return pgx.Connect(ctx, c.getPostgresDSN())
 	default:
 		return nil, errors.New("unrecognized database backend")
 	}

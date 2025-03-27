@@ -6,7 +6,17 @@ It is designed to create feeds and to ingest
 
 ## Installation
 
-First of all,
+First of all, you need to create a database.
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+CREATE USER __user__ WITH ENCRYPTED PASSWORD 'changeme';
+CREATE DATABASE feedme;
+GRANT ALL PRIVILEGES ON feedme TO __user__;
+```
 
 ## Development
 

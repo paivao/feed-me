@@ -1,10 +1,11 @@
 version: "2"
 sql:
-  - engine: "mysql"
+  - engine: "postgresql"
     queries: "sql/queries"
     schema: "sql/schema"
     gen:
       go:
+        sql_package: "pgx/v5"
         out: "database"
         emit_pointers_for_null_types: true
         emit_empty_slices: true

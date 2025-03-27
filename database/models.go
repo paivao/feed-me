@@ -5,99 +5,99 @@
 package database
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 
 	"github.com/feed-me/types"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type FeedsType string
+type Feedtype string
 
 const (
-	FeedsTypeIp     FeedsType = "ip"
-	FeedsTypeDomain FeedsType = "domain"
-	FeedsTypeUrl    FeedsType = "url"
+	FeedtypeIp     Feedtype = "ip"
+	FeedtypeDomain Feedtype = "domain"
+	FeedtypeUrl    Feedtype = "url"
 )
 
-func (e *FeedsType) Scan(src interface{}) error {
+func (e *Feedtype) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = FeedsType(s)
+		*e = Feedtype(s)
 	case string:
-		*e = FeedsType(s)
+		*e = Feedtype(s)
 	default:
-		return fmt.Errorf("unsupported scan type for FeedsType: %T", src)
+		return fmt.Errorf("unsupported scan type for Feedtype: %T", src)
 	}
 	return nil
 }
 
-type NullFeedsType struct {
-	FeedsType FeedsType `json:"feeds_type"`
-	Valid     bool      `json:"valid"` // Valid is true if FeedsType is not NULL
+type NullFeedtype struct {
+	Feedtype Feedtype `json:"feedtype"`
+	Valid    bool     `json:"valid"` // Valid is true if Feedtype is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullFeedsType) Scan(value interface{}) error {
+func (ns *NullFeedtype) Scan(value interface{}) error {
 	if value == nil {
-		ns.FeedsType, ns.Valid = "", false
+		ns.Feedtype, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.FeedsType.Scan(value)
+	return ns.Feedtype.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullFeedsType) Value() (driver.Value, error) {
+func (ns NullFeedtype) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.FeedsType), nil
+	return string(ns.Feedtype), nil
 }
 
-func (e FeedsType) Valid() bool {
+func (e Feedtype) Valid() bool {
 	switch e {
-	case FeedsTypeIp,
-		FeedsTypeDomain,
-		FeedsTypeUrl:
+	case FeedtypeIp,
+		FeedtypeDomain,
+		FeedtypeUrl:
 		return true
 	}
 	return false
 }
 
 type DomainEntry struct {
-	ID          int64          `json:"id"`
-	Value       string         `json:"value"`
-	Enabled     bool           `json:"enabled"`
-	Description sql.NullString `json:"description"`
-	ValidUntil  sql.NullTime   `json:"valid_until"`
-	FeedID      int32          `json:"feed_id"`
+	ID          int64            `json:"id"`
+	Value       string           `json:"value"`
+	Enabled     bool             `json:"enabled"`
+	Description *string          `json:"description"`
+	ValidUntil  pgtype.Timestamp `json:"valid_until"`
+	FeedID      int64            `json:"feed_id"`
 }
 
 type Feed struct {
-	ID          int32          `json:"id"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	IsPublic    bool           `json:"is_public"`
-	Type        FeedsType      `json:"type"`
+	ID          int64    `json:"id"`
+	Name        string   `json:"name"`
+	Description *string  `json:"description"`
+	IsPublic    bool     `json:"is_public"`
+	Type        Feedtype `json:"type"`
 }
 
 type IpEntry struct {
-	ID          int64          `json:"id"`
-	Value       types.MyNet    `json:"value"`
-	Enabled     bool           `json:"enabled"`
-	Description sql.NullString `json:"description"`
-	ValidUntil  sql.NullTime   `json:"valid_until"`
-	FeedID      int32          `json:"feed_id"`
+	ID          int64            `json:"id"`
+	Value       types.MyNet      `json:"value"`
+	Enabled     bool             `json:"enabled"`
+	Description *string          `json:"description"`
+	ValidUntil  pgtype.Timestamp `json:"valid_until"`
+	FeedID      int64            `json:"feed_id"`
 }
 
 type UrlEntry struct {
-	ID          int64          `json:"id"`
-	Value       string         `json:"value"`
-	Enabled     bool           `json:"enabled"`
-	Description sql.NullString `json:"description"`
-	ValidUntil  sql.NullTime   `json:"valid_until"`
-	FeedID      int32          `json:"feed_id"`
+	ID          int64            `json:"id"`
+	Value       string           `json:"value"`
+	Enabled     bool             `json:"enabled"`
+	Description *string          `json:"description"`
+	ValidUntil  pgtype.Timestamp `json:"valid_until"`
+	FeedID      int64            `json:"feed_id"`
 }
 
 type User struct {

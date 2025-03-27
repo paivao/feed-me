@@ -1,81 +1,63 @@
 package types
 
 import (
-	"database/sql/driver"
-	"fmt"
-	"net"
-	"strings"
+	"bytes"
+	"errors"
+	"net/netip"
 )
 
 type MyNet struct {
-	net.IPNet
+	netip.Prefix
 }
 
-func (ip *MyNet) Scan(src any) error {
-	bytes, ok := src.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to parse IP/Net value: %v", src)
-	}
-	var mask int = int(bytes[0])
-	bytes = bytes[1:]
-	if len(bytes) != 4 && len(bytes) != 16 {
-		return fmt.Errorf("invalid IP length: %d", len(bytes))
-	}
-	ip.IP = make(net.IP, len(bytes))
-	copy(ip.IP, bytes)
-	ip.Mask = net.CIDRMask(mask, len(ip.IP)*8)
-	return nil
+func (ip *MyNet) ScanBytes(src []byte) error {
+	return ip.UnmarshalBinary(src)
 }
 
-func (ip MyNet) Value() (driver.Value, error) {
-	ones, bits := ip.Mask.Size()
-	if bits != 32 && bits != 128 {
-		return nil, fmt.Errorf("invalid IP length: %d", bits)
-	}
-	bits = (bits >> 3) + 1
-	data := make([]byte, bits)
-	data[0] = byte(ones)
-	copy(data[1:], ip.IP)
-	return data, nil
+// Must not be a pointer
+func (ip MyNet) BytesValue() ([]byte, error) {
+	return ip.MarshalBinary()
 }
 
-func (ip *MyNet) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%s\"", ip.ToString())), nil
+func (ip MyNet) MarshalJSON() ([]byte, error) {
+	if !ip.IsValid() {
+		return nil, errors.New("invalid IP/Net")
+	}
+	val := ip.ToString()
+	b := make([]byte, 0, len(val)+2)
+	b = append(b, '"')
+	b = append(b, val...)
+	b = append(b, '"')
+	return b, nil
 }
 
 func (ip *MyNet) UnmarshalJSON(b []byte) error {
-	value := string(b[1 : len(b)-1])
-	return ip.FromString(value)
+	value := b[1 : len(b)-1]
+	return ip.FromText(value)
 }
 
-func (ip *MyNet) FromString(value string) error {
-	if strings.IndexByte(value, '/') == -1 {
-		calculated_ip := net.ParseIP(value)
-		calculated_ipv4 := calculated_ip.To4()
-		if calculated_ip == nil {
-			return &net.ParseError{Type: "Unknown IP address", Text: value}
-		}
-		if calculated_ipv4 != nil {
-			ip.IP = calculated_ipv4
-			ip.Mask = net.CIDRMask(net.IPv4len*8, net.IPv4len*8)
+func (ip *MyNet) FromText(value []byte) error {
+	if bytes.IndexByte(value, '/') == -1 {
+		//ipv4
+		if bytes.IndexByte(value, ':') == -1 {
+			value = append(value, "/32"...)
 		} else {
-			ip.IP = calculated_ip
-			ip.Mask = net.CIDRMask(net.IPv6len*8, net.IPv6len*8)
+			value = append(value, "/128"...)
 		}
-		return nil
 	}
-	_, net, err := net.ParseCIDR(value)
-	if err != nil {
-		return err
-	}
-	ip.IPNet = *net
-	return nil
+	return ip.UnmarshalText(value)
 }
 
 func (ip *MyNet) ToString() string {
-	ones, bits := ip.Mask.Size()
-	if ones == bits {
-		return ip.IP.String()
+	var val string
+	if ip.IsSingleIP() {
+		val = ip.Addr().String()
+	} else {
+		val = ip.String()
 	}
-	return ip.String()
+	return val
+}
+
+func (ip *MyNet) String() string {
+	return ip.ToString()
 }

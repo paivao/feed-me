@@ -10,11 +10,11 @@ import (
 )
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, name, email, password_hash FROM users WHERE id = ?
+SELECT id, name, email, password_hash FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserById, id)
+	row := q.db.QueryRow(ctx, getUserById, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -26,11 +26,11 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserByName = `-- name: GetUserByName :one
-SELECT id, name, email, password_hash FROM users WHERE name = ?
+SELECT id, name, email, password_hash FROM users WHERE name = $1
 `
 
 func (q *Queries) GetUserByName(ctx context.Context, name string) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUserByName, name)
+	row := q.db.QueryRow(ctx, getUserByName, name)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -46,7 +46,7 @@ SELECT id, name, email, password_hash FROM users
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, listUsers)
+	rows, err := q.db.Query(ctx, listUsers)
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +63,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

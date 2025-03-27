@@ -1,6 +1,8 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type JsonError struct {
 	Error string `json:"error"`
@@ -13,6 +15,16 @@ type JsonMessage struct {
 type JsonMessageId struct {
 	Message string `json:"message"`
 	ID      int64  `json:"id"`
+}
+
+type JsonMessageFeed struct {
+	Message string      `json:"message"`
+	Feed    interface{} `json:"feed"`
+}
+
+type JsonMessageEntry struct {
+	Message string      `json:"message"`
+	Entry   interface{} `json:"entry"`
 }
 
 func NewJsonError(err error) JsonError {

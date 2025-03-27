@@ -91,7 +91,7 @@ function app() {
 
             axios.put(`${apiURL}/feed`, this.newFeed)
                 .then(response => {
-                    this.feeds.push(response.data);
+                    this.feeds.push(response.data.feed);
                     this.newFeed = clearFeed()
                 })
                 .catch(error => {
@@ -100,11 +100,13 @@ function app() {
         },
 
         removeFeed(id) {
-            if (confirm('Are you sure you want to delete this category?')) {
+            if (confirm('Are you sure you want to delete this feed?')) {
                 axios.delete(`${apiURL}/feed/${id}`)
-                    .then(() => {
-                        this.feeds = this.feeds.filter(feed => feed.id !== id);
-                        if (this.selectedFeed.id === id) {
+                    .then(response => {
+                        to_remove = this.feeds.findIndex(feed => feed.id !== response.data.id);
+                        if (to_remove != -1)
+                            this.feeds.splice(to_remove, 1);
+                        if (this.selectedFeed.id === response.data.id) {
                             this.entries = [];
                             this.newEntry = clearEntry();
                             this.selectedFeed = null;
@@ -133,7 +135,7 @@ function app() {
             const feed = this.selectedFeed;
             axios.put(`${apiURL}/entry/${feed.type}/${feed.id}`, this.newEntry)
                 .then(response => {
-                    this.entries.push({id: response.id, ...this.newEntry});
+                    this.entries.push(response.data.entry);
                     this.newEntry = clearEntry();
                 })
                 .catch(error => {
@@ -142,12 +144,12 @@ function app() {
         },
 
         editEntry(entry) {
-            const newName = prompt('Edit Item Name:', item.name);
+            const newName = prompt('Edit Item Name:', entry.name);
             const feed = this.selectedFeed;
             if (newName && newName !== entry.name) {
                 axios.post(`${apiURL}/entry/${feed.type}/${feed.id}/${entry.id}`, { name: newName })
                     .then(response => {
-                        this.entries.push({id: response.id, ...this.newEntry})
+                        element = this.entries.find(e => e.id == response.data.id)
                     })
                     .catch(error => {
                         console.error(error);
@@ -160,7 +162,9 @@ function app() {
                 const feed = this.selectedFeed;
                 axios.delete(`${apiURL}/entry/${feed.type}/${feed.id}/${entry.id}`)
                     .then(response => {
-                        this.entries.filter(entry => response.id !== entry.id);
+                        to_remove = this.entries.findIndex(e => e.id === response.data.id)
+                        if (to_remove != -1)
+                            this.entries.splice(to_remove, 1)
                     })
                     .catch(error => {
                         console.error(error);

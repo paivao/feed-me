@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"embed"
 	"encoding/base64"
 	"errors"
@@ -21,6 +21,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -46,17 +47,17 @@ var index_page embed.FS
 var embed_static embed.FS
 
 func main() {
-
+	bg := context.Background()
 	conf, err := LoadConfiguration("config.json")
 	if err != nil {
 		log.Fatalf("could not load configuration: %v\n", err)
 	}
 
-	db, err := conf.ConnectDB()
+	db, err := conf.ConnectDB(bg)
 	if err != nil {
 		log.Fatalf("could not connect to database: %v\n", err)
 	}
-	defer db.Close()
+	defer db.Close(bg)
 
 	log.Info("Managing migrations")
 
@@ -146,7 +147,7 @@ func main() {
 	log.Fatal(fiber_app.Listen(fmt.Sprintf("%s:%d", conf.Host, conf.Port)))
 }
 
-func exportBasicAuth(db *sql.DB) func(c *fiber.Ctx) error {
+func exportBasicAuth(db *pgx.Conn) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		auth := c.Get(fiber.HeaderAuthorization)
 		c.Locals("user", nil)

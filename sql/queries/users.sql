@@ -2,8 +2,8 @@
 SELECT * FROM users;
 
 -- name: GetUserById :one
-SELECT * FROM users WHERE id = ?;
+SELECT * FROM users WHERE id = $1;
 
 -- name: GetUserByName :one
-SELECT * FROM users WHERE name = ?;
+SELECT * FROM users WHERE name = $1;
 

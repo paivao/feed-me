@@ -7,17 +7,17 @@ package database
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/feed-me/types"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const editDomainEntryById = `-- name: EditDomainEntryById :exec
-UPDATE domain_entries SET enabled = ?, description = ?, valid_until = ? WHERE id = ?
+UPDATE domain_entries SET enabled = $1, description = $2, valid_until = $3 WHERE id = $4 RETURNING id, value, enabled, description, valid_until, feed_id
 `
 
-func (q *Queries) EditDomainEntryById(ctx context.Context, enabled bool, description sql.NullString, validUntil sql.NullTime, iD int64) error {
-	_, err := q.db.ExecContext(ctx, editDomainEntryById,
+func (q *Queries) EditDomainEntryById(ctx context.Context, enabled bool, description *string, validUntil pgtype.Timestamp, iD int64) error {
+	_, err := q.db.Exec(ctx, editDomainEntryById,
 		enabled,
 		description,
 		validUntil,
@@ -27,11 +27,11 @@ func (q *Queries) EditDomainEntryById(ctx context.Context, enabled bool, descrip
 }
 
 const editIPEntryById = `-- name: EditIPEntryById :exec
-UPDATE ip_entries SET enabled = ?, description = ?, valid_until = ? WHERE id = ?
+UPDATE ip_entries SET enabled = $1, description = $2, valid_until = $3 WHERE id = $4 RETURNING id, value, enabled, description, valid_until, feed_id
 `
 
-func (q *Queries) EditIPEntryById(ctx context.Context, enabled bool, description sql.NullString, validUntil sql.NullTime, iD int64) error {
-	_, err := q.db.ExecContext(ctx, editIPEntryById,
+func (q *Queries) EditIPEntryById(ctx context.Context, enabled bool, description *string, validUntil pgtype.Timestamp, iD int64) error {
+	_, err := q.db.Exec(ctx, editIPEntryById,
 		enabled,
 		description,
 		validUntil,
@@ -41,11 +41,11 @@ func (q *Queries) EditIPEntryById(ctx context.Context, enabled bool, description
 }
 
 const editURLEntryById = `-- name: EditURLEntryById :exec
-UPDATE url_entries SET enabled = ?, description = ?, valid_until = ? WHERE id = ?
+UPDATE url_entries SET enabled = $1, description = $2, valid_until = $3 WHERE id = $4 RETURNING id, value, enabled, description, valid_until, feed_id
 `
 
-func (q *Queries) EditURLEntryById(ctx context.Context, enabled bool, description sql.NullString, validUntil sql.NullTime, iD int64) error {
-	_, err := q.db.ExecContext(ctx, editURLEntryById,
+func (q *Queries) EditURLEntryById(ctx context.Context, enabled bool, description *string, validUntil pgtype.Timestamp, iD int64) error {
+	_, err := q.db.Exec(ctx, editURLEntryById,
 		enabled,
 		description,
 		validUntil,
@@ -55,11 +55,11 @@ func (q *Queries) EditURLEntryById(ctx context.Context, enabled bool, descriptio
 }
 
 const getDomainEnabledEntries = `-- name: GetDomainEnabledEntries :many
-SELECT value FROM domain_entries WHERE enabled = 1 AND feed_id = ? AND (valid_until IS NULL OR valid_until >= ?)
+SELECT value FROM domain_entries WHERE enabled = TRUE AND feed_id = $1 AND (valid_until IS NULL OR valid_until >=$2)
 `
 
-func (q *Queries) GetDomainEnabledEntries(ctx context.Context, feedID int32, validUntil sql.NullTime) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getDomainEnabledEntries, feedID, validUntil)
+func (q *Queries) GetDomainEnabledEntries(ctx context.Context, feedID int64, validUntil pgtype.Timestamp) ([]string, error) {
+	rows, err := q.db.Query(ctx, getDomainEnabledEntries, feedID, validUntil)
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,6 @@ func (q *Queries) GetDomainEnabledEntries(ctx context.Context, feedID int32, val
 		}
 		items = append(items, value)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -82,11 +79,11 @@ func (q *Queries) GetDomainEnabledEntries(ctx context.Context, feedID int32, val
 }
 
 const getDomainEntryById = `-- name: GetDomainEntryById :one
-SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries WHERE id = ? AND feed_id = ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries WHERE id = $1 AND feed_id = $2
 `
 
-func (q *Queries) GetDomainEntryById(ctx context.Context, iD int64, feedID int32) (DomainEntry, error) {
-	row := q.db.QueryRowContext(ctx, getDomainEntryById, iD, feedID)
+func (q *Queries) GetDomainEntryById(ctx context.Context, iD int64, feedID int64) (DomainEntry, error) {
+	row := q.db.QueryRow(ctx, getDomainEntryById, iD, feedID)
 	var i DomainEntry
 	err := row.Scan(
 		&i.ID,
@@ -100,11 +97,11 @@ func (q *Queries) GetDomainEntryById(ctx context.Context, iD int64, feedID int32
 }
 
 const getIPEnabledEntries = `-- name: GetIPEnabledEntries :many
-SELECT value FROM ip_entries WHERE enabled = 1 AND feed_id = ? AND (valid_until IS NULL OR valid_until >= ?)
+SELECT value FROM ip_entries WHERE enabled = TRUE AND feed_id = $1 AND (valid_until IS NULL OR valid_until >= $2)
 `
 
-func (q *Queries) GetIPEnabledEntries(ctx context.Context, feedID int32, validUntil sql.NullTime) ([]types.MyNet, error) {
-	rows, err := q.db.QueryContext(ctx, getIPEnabledEntries, feedID, validUntil)
+func (q *Queries) GetIPEnabledEntries(ctx context.Context, feedID int64, validUntil pgtype.Timestamp) ([]types.MyNet, error) {
+	rows, err := q.db.Query(ctx, getIPEnabledEntries, feedID, validUntil)
 	if err != nil {
 		return nil, err
 	}
@@ -117,9 +114,6 @@ func (q *Queries) GetIPEnabledEntries(ctx context.Context, feedID int32, validUn
 		}
 		items = append(items, value)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -127,11 +121,11 @@ func (q *Queries) GetIPEnabledEntries(ctx context.Context, feedID int32, validUn
 }
 
 const getIPEntryById = `-- name: GetIPEntryById :one
-SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHERE id = ? AND feed_id = ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHERE id = $1 AND feed_id = $2
 `
 
-func (q *Queries) GetIPEntryById(ctx context.Context, iD int64, feedID int32) (IpEntry, error) {
-	row := q.db.QueryRowContext(ctx, getIPEntryById, iD, feedID)
+func (q *Queries) GetIPEntryById(ctx context.Context, iD int64, feedID int64) (IpEntry, error) {
+	row := q.db.QueryRow(ctx, getIPEntryById, iD, feedID)
 	var i IpEntry
 	err := row.Scan(
 		&i.ID,
@@ -145,11 +139,11 @@ func (q *Queries) GetIPEntryById(ctx context.Context, iD int64, feedID int32) (I
 }
 
 const getURLEnabledEntries = `-- name: GetURLEnabledEntries :many
-SELECT value FROM url_entries WHERE enabled = 1 AND feed_id = ? AND (valid_until IS NULL OR valid_until >= ?)
+SELECT value FROM url_entries WHERE enabled = TRUE AND feed_id = $1 AND (valid_until IS NULL OR valid_until >= $2)
 `
 
-func (q *Queries) GetURLEnabledEntries(ctx context.Context, feedID int32, validUntil sql.NullTime) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getURLEnabledEntries, feedID, validUntil)
+func (q *Queries) GetURLEnabledEntries(ctx context.Context, feedID int64, validUntil pgtype.Timestamp) ([]string, error) {
+	rows, err := q.db.Query(ctx, getURLEnabledEntries, feedID, validUntil)
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +156,6 @@ func (q *Queries) GetURLEnabledEntries(ctx context.Context, feedID int32, validU
 		}
 		items = append(items, value)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -172,11 +163,11 @@ func (q *Queries) GetURLEnabledEntries(ctx context.Context, feedID int32, validU
 }
 
 const getURLEntryById = `-- name: GetURLEntryById :one
-SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WHERE id = ? AND feed_id = ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WHERE id = $1 AND feed_id = $2
 `
 
-func (q *Queries) GetURLEntryById(ctx context.Context, iD int64, feedID int32) (UrlEntry, error) {
-	row := q.db.QueryRowContext(ctx, getURLEntryById, iD, feedID)
+func (q *Queries) GetURLEntryById(ctx context.Context, iD int64, feedID int64) (UrlEntry, error) {
+	row := q.db.QueryRow(ctx, getURLEntryById, iD, feedID)
 	var i UrlEntry
 	err := row.Scan(
 		&i.ID,
@@ -189,48 +180,78 @@ func (q *Queries) GetURLEntryById(ctx context.Context, iD int64, feedID int32) (
 	return i, err
 }
 
-const insertDomainEntry = `-- name: InsertDomainEntry :execresult
-INSERT INTO domain_entries (value, description, valid_until, feed_id) VALUES (?, ?, ?, ?)
+const insertDomainEntry = `-- name: InsertDomainEntry :one
+INSERT INTO domain_entries (value, description, valid_until, feed_id) VALUES ($1, $2, $3, $4) RETURNING id, value, enabled, description, valid_until, feed_id
 `
 
-func (q *Queries) InsertDomainEntry(ctx context.Context, value string, description sql.NullString, validUntil sql.NullTime, feedID int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, insertDomainEntry,
+func (q *Queries) InsertDomainEntry(ctx context.Context, value string, description *string, validUntil pgtype.Timestamp, feedID int64) (DomainEntry, error) {
+	row := q.db.QueryRow(ctx, insertDomainEntry,
 		value,
 		description,
 		validUntil,
 		feedID,
 	)
+	var i DomainEntry
+	err := row.Scan(
+		&i.ID,
+		&i.Value,
+		&i.Enabled,
+		&i.Description,
+		&i.ValidUntil,
+		&i.FeedID,
+	)
+	return i, err
 }
 
-const insertIPEntry = `-- name: InsertIPEntry :execresult
-INSERT INTO ip_entries (value, description, valid_until, feed_id) VALUES (?, ?, ?, ?)
+const insertIPEntry = `-- name: InsertIPEntry :one
+INSERT INTO ip_entries (value, description, valid_until, feed_id) VALUES ($1, $2, $3, $4) RETURNING id, value, enabled, description, valid_until, feed_id
 `
 
-func (q *Queries) InsertIPEntry(ctx context.Context, value types.MyNet, description sql.NullString, validUntil sql.NullTime, feedID int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, insertIPEntry,
+func (q *Queries) InsertIPEntry(ctx context.Context, value types.MyNet, description *string, validUntil pgtype.Timestamp, feedID int64) (IpEntry, error) {
+	row := q.db.QueryRow(ctx, insertIPEntry,
 		value,
 		description,
 		validUntil,
 		feedID,
 	)
+	var i IpEntry
+	err := row.Scan(
+		&i.ID,
+		&i.Value,
+		&i.Enabled,
+		&i.Description,
+		&i.ValidUntil,
+		&i.FeedID,
+	)
+	return i, err
 }
 
-const insertURLEntry = `-- name: InsertURLEntry :execresult
-INSERT INTO url_entries (value, description, valid_until, feed_id) VALUES (?, ?, ?, ?)
+const insertURLEntry = `-- name: InsertURLEntry :one
+INSERT INTO url_entries (value, description, valid_until, feed_id) VALUES ($1, $2, $3, $4) RETURNING id, value, enabled, description, valid_until, feed_id
 `
 
-func (q *Queries) InsertURLEntry(ctx context.Context, value string, description sql.NullString, validUntil sql.NullTime, feedID int32) (sql.Result, error) {
-	return q.db.ExecContext(ctx, insertURLEntry,
+func (q *Queries) InsertURLEntry(ctx context.Context, value string, description *string, validUntil pgtype.Timestamp, feedID int64) (UrlEntry, error) {
+	row := q.db.QueryRow(ctx, insertURLEntry,
 		value,
 		description,
 		validUntil,
 		feedID,
 	)
+	var i UrlEntry
+	err := row.Scan(
+		&i.ID,
+		&i.Value,
+		&i.Enabled,
+		&i.Description,
+		&i.ValidUntil,
+		&i.FeedID,
+	)
+	return i, err
 }
 
 const listDomainEntries = `-- name: ListDomainEntries :many
 
-SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries WHERE feed_id = ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries WHERE feed_id = $1
 `
 
 // --------------------
@@ -238,8 +259,8 @@ SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries
 //	DOMAIN ENTRIES
 //
 // --------------------
-func (q *Queries) ListDomainEntries(ctx context.Context, feedID int32) ([]DomainEntry, error) {
-	rows, err := q.db.QueryContext(ctx, listDomainEntries, feedID)
+func (q *Queries) ListDomainEntries(ctx context.Context, feedID int64) ([]DomainEntry, error) {
+	rows, err := q.db.Query(ctx, listDomainEntries, feedID)
 	if err != nil {
 		return nil, err
 	}
@@ -258,9 +279,6 @@ func (q *Queries) ListDomainEntries(ctx context.Context, feedID int32) ([]Domain
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -269,11 +287,11 @@ func (q *Queries) ListDomainEntries(ctx context.Context, feedID int32) ([]Domain
 }
 
 const listDomainEntriesWindow = `-- name: ListDomainEntriesWindow :many
-SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries WHERE feed_id = ? LIMIT ? OFFSET ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM domain_entries WHERE feed_id = $1 LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) ListDomainEntriesWindow(ctx context.Context, feedID int32, limit int32, offset int32) ([]DomainEntry, error) {
-	rows, err := q.db.QueryContext(ctx, listDomainEntriesWindow, feedID, limit, offset)
+func (q *Queries) ListDomainEntriesWindow(ctx context.Context, feedID int64, limit int32, offset int32) ([]DomainEntry, error) {
+	rows, err := q.db.Query(ctx, listDomainEntriesWindow, feedID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -292,9 +310,6 @@ func (q *Queries) ListDomainEntriesWindow(ctx context.Context, feedID int32, lim
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -304,7 +319,7 @@ func (q *Queries) ListDomainEntriesWindow(ctx context.Context, feedID int32, lim
 
 const listIPEntries = `-- name: ListIPEntries :many
 
-SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHERE feed_id = ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHERE feed_id = $1
 `
 
 // ----------------
@@ -312,8 +327,8 @@ SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHE
 //	IP ENTRIES
 //
 // ----------------
-func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, error) {
-	rows, err := q.db.QueryContext(ctx, listIPEntries, feedID)
+func (q *Queries) ListIPEntries(ctx context.Context, feedID int64) ([]IpEntry, error) {
+	rows, err := q.db.Query(ctx, listIPEntries, feedID)
 	if err != nil {
 		return nil, err
 	}
@@ -332,9 +347,6 @@ func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, e
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -343,11 +355,11 @@ func (q *Queries) ListIPEntries(ctx context.Context, feedID int32) ([]IpEntry, e
 }
 
 const listIPEntriesWindow = `-- name: ListIPEntriesWindow :many
-SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHERE feed_id = ? LIMIT ? OFFSET ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM ip_entries WHERE feed_id = $1 LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) ListIPEntriesWindow(ctx context.Context, feedID int32, limit int32, offset int32) ([]IpEntry, error) {
-	rows, err := q.db.QueryContext(ctx, listIPEntriesWindow, feedID, limit, offset)
+func (q *Queries) ListIPEntriesWindow(ctx context.Context, feedID int64, limit int32, offset int32) ([]IpEntry, error) {
+	rows, err := q.db.Query(ctx, listIPEntriesWindow, feedID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -366,9 +378,6 @@ func (q *Queries) ListIPEntriesWindow(ctx context.Context, feedID int32, limit i
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -378,7 +387,7 @@ func (q *Queries) ListIPEntriesWindow(ctx context.Context, feedID int32, limit i
 
 const listURLEntries = `-- name: ListURLEntries :many
 
-SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WHERE feed_id = ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WHERE feed_id = $1
 `
 
 // -----------------
@@ -386,8 +395,8 @@ SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WH
 //	URL ENTRIES
 //
 // -----------------
-func (q *Queries) ListURLEntries(ctx context.Context, feedID int32) ([]UrlEntry, error) {
-	rows, err := q.db.QueryContext(ctx, listURLEntries, feedID)
+func (q *Queries) ListURLEntries(ctx context.Context, feedID int64) ([]UrlEntry, error) {
+	rows, err := q.db.Query(ctx, listURLEntries, feedID)
 	if err != nil {
 		return nil, err
 	}
@@ -406,9 +415,6 @@ func (q *Queries) ListURLEntries(ctx context.Context, feedID int32) ([]UrlEntry,
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -417,11 +423,11 @@ func (q *Queries) ListURLEntries(ctx context.Context, feedID int32) ([]UrlEntry,
 }
 
 const listURLEntriesWindow = `-- name: ListURLEntriesWindow :many
-SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WHERE feed_id = ? LIMIT ? OFFSET ?
+SELECT id, value, enabled, description, valid_until, feed_id FROM url_entries WHERE feed_id = $1 LIMIT $2 OFFSET $3
 `
 
-func (q *Queries) ListURLEntriesWindow(ctx context.Context, feedID int32, limit int32, offset int32) ([]UrlEntry, error) {
-	rows, err := q.db.QueryContext(ctx, listURLEntriesWindow, feedID, limit, offset)
+func (q *Queries) ListURLEntriesWindow(ctx context.Context, feedID int64, limit int32, offset int32) ([]UrlEntry, error) {
+	rows, err := q.db.Query(ctx, listURLEntriesWindow, feedID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -441,9 +447,6 @@ func (q *Queries) ListURLEntriesWindow(ctx context.Context, feedID int32, limit 
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -451,28 +454,28 @@ func (q *Queries) ListURLEntriesWindow(ctx context.Context, feedID int32, limit 
 }
 
 const removeDomainEntry = `-- name: RemoveDomainEntry :exec
-DELETE FROM domain_entries WHERE id = ? AND feed_id = ?
+DELETE FROM domain_entries WHERE id = $1 AND feed_id = $2
 `
 
-func (q *Queries) RemoveDomainEntry(ctx context.Context, iD int64, feedID int32) error {
-	_, err := q.db.ExecContext(ctx, removeDomainEntry, iD, feedID)
+func (q *Queries) RemoveDomainEntry(ctx context.Context, iD int64, feedID int64) error {
+	_, err := q.db.Exec(ctx, removeDomainEntry, iD, feedID)
 	return err
 }
 
 const removeIPEntry = `-- name: RemoveIPEntry :exec
-DELETE FROM ip_entries WHERE id = ? AND feed_id = ?
+DELETE FROM ip_entries WHERE id = $1 AND feed_id = $2
 `
 
-func (q *Queries) RemoveIPEntry(ctx context.Context, iD int64, feedID int32) error {
-	_, err := q.db.ExecContext(ctx, removeIPEntry, iD, feedID)
+func (q *Queries) RemoveIPEntry(ctx context.Context, iD int64, feedID int64) error {
+	_, err := q.db.Exec(ctx, removeIPEntry, iD, feedID)
 	return err
 }
 
 const removeURLEntry = `-- name: RemoveURLEntry :exec
-DELETE FROM url_entries WHERE id = ? AND feed_id = ?
+DELETE FROM url_entries WHERE id = $1 AND feed_id = $2
 `
 
-func (q *Queries) RemoveURLEntry(ctx context.Context, iD int64, feedID int32) error {
-	_, err := q.db.ExecContext(ctx, removeURLEntry, iD, feedID)
+func (q *Queries) RemoveURLEntry(ctx context.Context, iD int64, feedID int64) error {
+	_, err := q.db.Exec(ctx, removeURLEntry, iD, feedID)
 	return err
 }

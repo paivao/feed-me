@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"database/sql"
-
 	"github.com/feed-me/database"
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
@@ -14,7 +12,7 @@ const (
 )
 
 type UserController struct {
-	DB    *sql.DB
+	DB    database.DBTX
 	Store *session.Store
 }
 

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/feed-me/database"
@@ -10,10 +9,11 @@ import (
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type FeedController struct {
-	DB *sql.DB
+	DB database.DBTX
 }
 
 type CreateFeedRequest struct {
@@ -51,26 +51,19 @@ func (ctrl *FeedController) CreateFeed(c *fiber.Ctx) error {
 		ctxlog.Warnf("req: %v", req)
 		return fiber.ErrBadRequest
 	}
-	feed_type := database.FeedsType(req.FeedType)
+	feed_type := database.Feedtype(req.FeedType)
 	if !feed_type.Valid() {
 		ctxlog.Warnf("invalid feed type: %s", feed_type)
 		ctxlog.Warnf("req: %v", req)
 		return fiber.NewError(fiber.StatusBadRequest, "invalid feed type")
 	}
 	queries := database.New(ctrl.DB)
-	result, err := queries.CreateFeed(c.Context(), req.Name, utils.ConvertToNullString(req.Description), utils.BoolColapse(req.IsPublic, true), feed_type)
+	new_feed, err := queries.CreateFeed(c.Context(), req.Name, req.Description, utils.BoolColapse(req.IsPublic, true), feed_type)
 	if err != nil {
 		ctxlog.Warnf("database error: %v", err)
 		return fiber.ErrBadRequest
 	}
-	id, err := result.LastInsertId()
-	feed, err2 := queries.GetFeedById(c.Context(), int32(id))
-	err = errors.Join(err, err2)
-	if err != nil {
-		ctxlog.Warnf("database error: %v", err)
-		return fiber.ErrBadRequest
-	}
-	return c.JSON(feed)
+	return c.JSON(fiber.Map{"message": "new feed created successfully", "feed": new_feed})
 }
 
 func (ctrl *FeedController) EditFeed(c *fiber.Ctx) error {
@@ -83,7 +76,7 @@ func (ctrl *FeedController) EditFeed(c *fiber.Ctx) error {
 	}
 	queries := database.New(ctrl.DB)
 
-	feed, err := queries.GetFeedById(c.Context(), int32(id))
+	feed, err := queries.GetFeedById(c.Context(), int64(id))
 	if err == sql.ErrNoRows {
 		return fiber.ErrNotFound
 	}
@@ -93,8 +86,7 @@ func (ctrl *FeedController) EditFeed(c *fiber.Ctx) error {
 	}
 
 	if req.Description != nil {
-		feed.Description.String = *req.Description
-		feed.Description.Valid = true
+		feed.Description = req.Description
 	}
 
 	err = queries.EditFeedById(c.Context(), feed.Description, utils.BoolColapse(req.IsPublic, feed.IsPublic), feed.ID)
@@ -114,7 +106,7 @@ func (ctrl *FeedController) DeleteFeed(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 	queries := database.New(ctrl.DB)
-	err = queries.RemoveFeedById(c.Context(), int32(id))
+	err = queries.RemoveFeedById(c.Context(), int64(id))
 	if err == sql.ErrNoRows {
 		return fiber.ErrNotFound
 	}
@@ -133,19 +125,19 @@ func (ctrl *FeedController) PrintFeed(c *fiber.Ctx) error {
 	} else if err != nil {
 		return err
 	}
-	now := sql.NullTime{Time: time.Now(), Valid: true}
+	now := pgtype.Timestamp{Time: time.Now(), Valid: true}
 
-	if feed.Type == database.FeedsTypeIp {
+	if feed.Type == database.FeedtypeIp {
 		entries, err := queries.GetIPEnabledEntries(c.Context(), feed.ID, now)
 		if err != nil {
 			return err
 		}
 		for _, ip := range entries {
-			c.Writef("%s\n", ip.String())
+			c.Writef("%s\n", ip.ToString())
 		}
 	} else {
 		var entries []string
-		if feed.Type == database.FeedsTypeDomain {
+		if feed.Type == database.FeedtypeDomain {
 			entries, err = queries.GetDomainEnabledEntries(c.Context(), feed.ID, now)
 		} else {
 			entries, err = queries.GetURLEnabledEntries(c.Context(), feed.ID, now)

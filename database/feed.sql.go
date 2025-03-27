@@ -7,37 +7,45 @@ package database
 
 import (
 	"context"
-	"database/sql"
 )
 
-const createFeed = `-- name: CreateFeed :execresult
-INSERT INTO feeds (name, description, is_public, type) VALUES (?, ?, ?, ?)
+const createFeed = `-- name: CreateFeed :one
+INSERT INTO feeds (name, description, is_public, type) VALUES ($1, $2, $3, $4) RETURNING id, name, description, is_public, type
 `
 
-func (q *Queries) CreateFeed(ctx context.Context, name string, description sql.NullString, isPublic bool, type_ FeedsType) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createFeed,
+func (q *Queries) CreateFeed(ctx context.Context, name string, description *string, isPublic bool, type_ Feedtype) (Feed, error) {
+	row := q.db.QueryRow(ctx, createFeed,
 		name,
 		description,
 		isPublic,
 		type_,
 	)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.IsPublic,
+		&i.Type,
+	)
+	return i, err
 }
 
 const editFeedById = `-- name: EditFeedById :exec
-UPDATE feeds SET description = ?, is_public = ? WHERE id = ?
+UPDATE feeds SET description = $1, is_public = $2 WHERE id = $3
 `
 
-func (q *Queries) EditFeedById(ctx context.Context, description sql.NullString, isPublic bool, iD int32) error {
-	_, err := q.db.ExecContext(ctx, editFeedById, description, isPublic, iD)
+func (q *Queries) EditFeedById(ctx context.Context, description *string, isPublic bool, iD int64) error {
+	_, err := q.db.Exec(ctx, editFeedById, description, isPublic, iD)
 	return err
 }
 
 const getFeedById = `-- name: GetFeedById :one
-SELECT id, name, description, is_public, type FROM feeds WHERE id = ?
+SELECT id, name, description, is_public, type FROM feeds WHERE id = $1
 `
 
-func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getFeedById, id)
+func (q *Queries) GetFeedById(ctx context.Context, id int64) (Feed, error) {
+	row := q.db.QueryRow(ctx, getFeedById, id)
 	var i Feed
 	err := row.Scan(
 		&i.ID,
@@ -50,11 +58,11 @@ func (q *Queries) GetFeedById(ctx context.Context, id int32) (Feed, error) {
 }
 
 const getFeedByIdAndType = `-- name: GetFeedByIdAndType :one
-SELECT id, name, description, is_public, type FROM feeds WHERE id = ? and type = ?
+SELECT id, name, description, is_public, type FROM feeds WHERE id = $1 and type = $2
 `
 
-func (q *Queries) GetFeedByIdAndType(ctx context.Context, iD int32, type_ FeedsType) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getFeedByIdAndType, iD, type_)
+func (q *Queries) GetFeedByIdAndType(ctx context.Context, iD int64, type_ Feedtype) (Feed, error) {
+	row := q.db.QueryRow(ctx, getFeedByIdAndType, iD, type_)
 	var i Feed
 	err := row.Scan(
 		&i.ID,
@@ -67,11 +75,11 @@ func (q *Queries) GetFeedByIdAndType(ctx context.Context, iD int32, type_ FeedsT
 }
 
 const getFeedByName = `-- name: GetFeedByName :one
-SELECT id, name, description, is_public, type FROM feeds WHERE name = ?
+SELECT id, name, description, is_public, type FROM feeds WHERE name = $1
 `
 
 func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) {
-	row := q.db.QueryRowContext(ctx, getFeedByName, name)
+	row := q.db.QueryRow(ctx, getFeedByName, name)
 	var i Feed
 	err := row.Scan(
 		&i.ID,
@@ -84,12 +92,12 @@ func (q *Queries) GetFeedByName(ctx context.Context, name string) (Feed, error) 
 }
 
 const getFeedTypeById = `-- name: GetFeedTypeById :one
-SELECT type FROM feeds WHERE id = ?
+SELECT type FROM feeds WHERE id = $1
 `
 
-func (q *Queries) GetFeedTypeById(ctx context.Context, id int32) (FeedsType, error) {
-	row := q.db.QueryRowContext(ctx, getFeedTypeById, id)
-	var type_ FeedsType
+func (q *Queries) GetFeedTypeById(ctx context.Context, id int64) (Feedtype, error) {
+	row := q.db.QueryRow(ctx, getFeedTypeById, id)
+	var type_ Feedtype
 	err := row.Scan(&type_)
 	return type_, err
 }
@@ -99,7 +107,7 @@ SELECT id, name, description, is_public, type FROM feeds
 `
 
 func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
-	rows, err := q.db.QueryContext(ctx, listFeeds)
+	rows, err := q.db.Query(ctx, listFeeds)
 	if err != nil {
 		return nil, err
 	}
@@ -118,9 +126,6 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -128,10 +133,10 @@ func (q *Queries) ListFeeds(ctx context.Context) ([]Feed, error) {
 }
 
 const removeFeedById = `-- name: RemoveFeedById :exec
-DELETE FROM feeds WHERE id = ?
+DELETE FROM feeds WHERE id = $1
 `
 
-func (q *Queries) RemoveFeedById(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, removeFeedById, id)
+func (q *Queries) RemoveFeedById(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, removeFeedById, id)
 	return err
 }
