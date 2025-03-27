@@ -138,9 +138,9 @@ func main() {
 	}))
 
 	app.Use("/static", filesystem.New(filesystem.Config{
-		Root:       http.FS(embed_static),
-		PathPrefix: "static",
-		Browse:     false,
+		Root: http.Dir("./static"),
+		//PathPrefix: "static",
+		Browse: false,
 	}))
 
 	// Start server

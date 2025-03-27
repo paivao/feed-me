@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" class="has-navbar-fixed-top">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/static/js/axios.min.js"></script>
+    <script src="/static/js/alpine.min.js" defer></script>
+    <script src="/static/js/app.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css" rel="stylesheet">
+    <title>Feed-Me</title>
+    <style>
+        .fullscreen {
+            height: 100vh;
+        }
+    </style>
+</head>
+
+<body x-data="app()">
+
+    <!-- Authentication Section -->
+    <template x-if="user === null" x-cloak>
+        <section class="columns is-vcentered is-centered is-mobile has-text-centered fullscreen">
+            <div class="column is-narrow">
+                <h1 class="title">Feed-Me</h1>
+                <h2 class="subtitle">Login</h2>
+                <form @submit.prevent="await login()" class="box">
+                    <div class="field mb-4">
+                        <label for="input-username" class="label">Usuário</label>
+                        <div class="control">
+                            <input type="text" x-model="loginData.username" id="input-username" class="input" required>
+                        </div>
+                    </div>
+                    <div class="field mb-4">
+                        <label for="input-password" class="label">Senha</label>
+                        <div class="control">
+                            <input type="password" x-model="loginData.password" id="input-password" class="input"
+                                required>
+                        </div>
+                    </div>
+                    <button type="submit" class="button is-link is-fullwidth">Login</button>
+                </form>
+            </div>
+        </section>
+    </template>
+
+    <template x-if="user !== null" x-cloak>
+        <div>
+            <nav class="navbar is-light is-fixed-top" role="navigation" aria-label="main navigation">
+                <div class="navbar-brand">
+                    <span class="navbar-item">
+                        Feed-Me
+                    </span>
+                </div>
+                <div class="navbar-menu">
+                    <div class="navbar-end">
+                        <div class="navbar-item">
+                            Bem vindo,&nbsp;<span x-text="user.name"></span>
+                        </div>
+                        <div class="navbar-item">
+                            <div class="buttons">
+                                <a class="button is-primary">Gerenciar</a>
+                                <button @click="await logout()" class="button is-danger">Logout</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+
+            <!-- CRUD Operations -->
+            <main class="container">
+                <template x-if="selectedFeed === null">
+                    <h1 class="title">Manage Feeds</h1>
+
+                </template>
+
+                <!-- Create Category -->
+                <div class="box mb-6">
+                    <div class="field">
+                        <label for="input-feed-name" class="label">Novo Feed</label>
+                        <div class="control">
+                            <input type="text" x-model="newFeed.name" placeholder="Nome do novo feed" class="input"
+                                id="input-feed-name" required>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="input-feed-description" class="label">Descrição</label>
+                        <div class="control">
+                            <input type="text" x-model="newFeed.description" placeholder="Comentário" class="input"
+                                id="input-feed-description" required>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="input-feed-type" class="label">Tipo de Feed</label>
+                        <div class="select" id="input-feed-type">
+                            <select x-model="newFeed.feed_type">
+                                <template x-for="feed in feed_types">
+                                    <option x-text="feed"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="checkbox">
+                            <input type="checkbox" x-model="newFeed.is_public" /> É público?
+                        </label>
+                    </div>
+                    <button @click="await createFeed()" class="button is-success is-fullwidth">Adicionar Feed</button>
+                </div>
+
+                <!-- Category List -->
+                <div>
+                    <template x-for="feed in feeds" :key="feed.id">
+                        <div class="box mb-4">
+                            <div class="columns is-mobile is-vcentered"
+                                :class="{ 'has-background-primary': feed === selectedFeed }">
+                                <div class="column">
+                                    <span class="title is-4" x-text="feed.name"></span>
+                                </div>
+                                <div class="column is-narrow">
+                                    <button @click="await removeFeed(feed.id)" class="button is-danger is-small">Delete
+                                        Category</button>
+                                    <button @click="await showEntries(feed)" class="button is-info is-small ml-2">View
+                                        Items</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <h3 class="subtitle is-5 mb-3">Entradas</h3>
+                <div class="field mb-4">
+                    <input type="text" x-model="newEntry.value" placeholder="New Entry value" class="input" required>
+                </div>
+                <button @click="await createEntry()" class="button is-primary is-small mb-4">Add Entry</button>
+                <div class="list">
+                    <template x-for="entry in entries" :key="entry.id">
+                        <!-- Item List -->
+                        <div class="list-item">
+                            <div class="columns is-mobile is-vcentered">
+                                <div class="column">
+                                    <span x-text="entry.value"></span>
+                                </div>
+                                <div class="column is-narrow">
+                                    <button @click="await editEntry(entry)" class="button is-warning is-small">Edit</button>
+                                    <button @click="await removeEntry(entry)"
+                                        class="button is-danger is-small ml-2">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </main>
+    </template>
+</body>
+
+</html>
