@@ -60,6 +60,9 @@ function app() {
             window: 20,
             page: 0,
             count: 0,
+            lastPage() {
+                return Math.floor((this.count -1) / (this.window))
+            },
         },
 
         init() {
@@ -185,8 +188,23 @@ function app() {
 
         async showEntries(feed) {
             this.selectedFeed = feed;
+            this.entryPagination.page = 0;
+            await this.countEntries();
+            await this.fetchEntries();
+        },
+
+        async countEntries(feed) {
             try {
-                const response = await axios.get(`${apiURL}/entry/${feed.type}/${feed.id}`)
+                const response = await axios.get(`${apiURL}/entry/${feed.type}/${feed.id}/count`)
+                this.entryPagination.count = response.data
+            } catch (error) {
+                console.error(error);
+            }
+        },
+
+        async fetchEntries(feed) {
+            try {
+                const response = await axios.get(`${apiURL}/entry/${feed.type}/${feed.id}?window=${this.entryPagination.window}&page=${this.entryPagination.page}`)
                 this.entries = response.data
             } catch (error) {
                 console.error(error);
@@ -200,7 +218,10 @@ function app() {
             const feed = this.selectedFeed;
             try {
                 const response = axios.put(`${apiURL}/entry/${feed.type}/${feed.id}`, entry)
-                this.entries.push(response.data.entry);
+                this.entryPagination.page = Math.floor((this.entryPagination.count) / (this.entryPagination.window))
+                this.entryPagination.count += 1
+                await this.fetchEntries();
+
             } catch (error) {
                 console.error(error);
             }
@@ -225,9 +246,8 @@ function app() {
             const feed = this.selectedFeed;
             try {
                 const response = await axios.delete(`${apiURL}/entry/${feed.type}/${feed.id}/${entry.id}`)
-                to_remove = this.entries.findIndex(e => e.id === response.data.id)
-                if (to_remove != -1)
-                    this.entries.splice(to_remove, 1)
+                this.entryPagination.count -= 1;
+                await this.fetchEntries();
             } catch (error) {
                 console.error(error);
             }

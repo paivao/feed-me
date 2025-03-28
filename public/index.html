@@ -183,6 +183,13 @@
                                     </template>
                                 </tbody>
                             </table>
+                            <div class="buttons">
+                                <button class="button" x-show="entryPagination.page > 0">Primeira página</button>
+                                <button class="button" x-show="entryPagination.page > 1">Anterior</button>
+                                <button class="button" x-text="'Página ' + entryPagination.page" disabled></button>
+                                <button class="button" x-show="entryPagination.page < entryPagination.lastPage() - 1">Próxima</button>
+                                <button class="button" x-show="entryPagination.page < entryPagination.lastPage()">Última Página</button>
+                            </div>
                         </div>
                         <div class="column">
                             <form @submit.prevent="await submitEntry()" @reset.prevent="resetEntry()" class="box">
