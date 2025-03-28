@@ -109,7 +109,7 @@ func main() {
 		ErrorHandler: jsonErrorHandler,
 	})
 	api.Post("/login", userController.Login)
-	api.Post("/logout", userController.Logout)
+	api.Post("/logout", userController.UserLoggedMiddleware, userController.Logout)
 	api.Get("/whoami", userController.UserLoggedMiddleware, func(c *fiber.Ctx) error {
 		user, ok := c.Locals("user").(database.User)
 		if !ok {

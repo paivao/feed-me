@@ -4,6 +4,7 @@ import (
 	"github.com/feed-me/database"
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/session"
 )
 
@@ -44,6 +45,7 @@ func (ctrl *UserController) UserLoggedMiddleware(c *fiber.Ctx) error {
 }
 
 func (ctrl *UserController) Login(c *fiber.Ctx) error {
+	ctxlog := log.WithContext(c.Context())
 	var userlogin UserLogin
 
 	if err := c.BodyParser(&userlogin); err != nil {
@@ -64,14 +66,18 @@ func (ctrl *UserController) Login(c *fiber.Ctx) error {
 	if err := sess.Save(); err != nil {
 		return err
 	}
+	ctxlog.Infof("%s logged in", user.Name)
 	return c.JSON(fiber.Map{"name": user.Name})
 }
 
 func (ctrl *UserController) Logout(c *fiber.Ctx) error {
+	ctxlog := log.WithContext(c.Context())
 	sess, err := ctrl.Store.Get(c)
 	if err != nil {
 		return err
 	}
 	sess.Delete(userSessionField)
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("%s logged out", user.Name)
 	return c.JSON(fiber.Map{"message": "success"})
 }

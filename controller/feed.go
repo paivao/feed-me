@@ -63,6 +63,8 @@ func (ctrl *FeedController) CreateFeed(c *fiber.Ctx) error {
 		ctxlog.Warnf("database error: %v", err)
 		return fiber.ErrBadRequest
 	}
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("feed created by %s [%s]: %s/%s", user.Name, c.Context().RemoteIP().String(), new_feed.Name, feed_type)
 	return c.JSON(fiber.Map{"message": "new feed created successfully", "feed": new_feed})
 }
 
@@ -94,6 +96,8 @@ func (ctrl *FeedController) EditFeed(c *fiber.Ctx) error {
 		ctxlog.Debugf("database error: %v", err)
 		return fiber.ErrBadRequest
 	}
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("feed modified by %s [%s]: %s/%s", user.Name, c.Context().RemoteIP().String(), feed.Name, feed.Type)
 	return c.JSON(types.JsonMessageId{Message: "feed modified", ID: int64(id)})
 }
 
@@ -114,6 +118,8 @@ func (ctrl *FeedController) DeleteFeed(c *fiber.Ctx) error {
 		ctxlog.Debugf("database error: %v", err)
 		return fiber.ErrBadRequest
 	}
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("feed removed by %s [%s]: %d", user.Name, c.Context().RemoteIP().String(), id)
 	return c.JSON(types.JsonMessageId{Message: "Feed removed", ID: int64(id)})
 }
 

@@ -94,7 +94,8 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 		ctxlog.Warnf("database error: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "could not retrive entries")
 	}
-	ctxlog.Debugf("%s retrieved by %s [%s]", feedType, c.Locals("userid"), c.Context().RemoteIP().String())
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Debugf("%s retrieved by %s [%s]", feedType, user.Name, c.Context().RemoteIP().String())
 	return c.JSON(entries)
 }
 
@@ -125,7 +126,6 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	case database.FeedtypeIp:
 		var my_net types.MyNet
 		err = my_net.FromText([]byte(req.Value))
-		ctxlog.Warnf("%v", my_net)
 		if err != nil {
 			ctxlog.Debugf("could not convert to ip: %v", err)
 			return fiber.NewError(fiber.StatusBadRequest, "incorrect ip/network")
@@ -145,7 +145,8 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 		ctxlog.Warnf("error in creating new entry: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "could not create new entry")
 	}
-	ctxlog.Infof("%s added by %s [%s]: %s", feedType, c.Locals("userid"), c.Context().RemoteIP().String(), req.Value)
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("%s added by %s [%s]: %s", feedType, user.Name, c.Context().RemoteIP().String(), req.Value)
 	return c.JSON(types.JsonMessageEntry{Message: "entry added successfully", Entry: new_item})
 }
 
@@ -228,7 +229,8 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 		ctxlog.Warnf("error in editing entry: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "could not edit entry")
 	}
-	ctxlog.Infof("%s edited by %s [%s]: %d/%d", feedType, c.Locals("user"), c.Context().RemoteIP().String(), id, feed.ID)
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("%s edited by %s [%s]: %d/%d", feedType, user.Name, c.Context().RemoteIP().String(), id, feed.ID)
 	return c.JSON(fiber.Map{"message": "entry editted", "id": id})
 }
 
@@ -275,6 +277,7 @@ func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
 		ctxlog.Warnf("error in removing entry: %v", err)
 		return fiber.NewError(fiber.StatusBadRequest, "could not remove entry")
 	}
-	ctxlog.Infof("%s removed by %s [%s]: %d/%d", feedType, c.Locals("user"), c.Context().RemoteIP().String(), id, feed.ID)
+	user, _ := c.Locals("userid").(database.User)
+	ctxlog.Infof("%s removed by %s [%s]: %d/%d", feedType, user.Name, c.Context().RemoteIP().String(), id, feed.ID)
 	return c.JSON(fiber.Map{"message": "entry removed", "id": id})
 }
