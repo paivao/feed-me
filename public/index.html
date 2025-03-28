@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="/admin/js/axios.min.js"></script>
-    <script src="/admin/js/alpine.min.js" defer></script>
-    <script src="/admin/js/app.js"></script>
-    <link href="/admin/css/bulma.min.css" rel="stylesheet">
+    <script src="js/axios.min.js"></script>
+    <script src="js/alpine.min.js" defer></script>
+    <script src="js/app.js"></script>
+    <link href="css/bulma.min.css" rel="stylesheet">
     <title>Feed-Me</title>
     <style>
         .fullscreen {
@@ -69,89 +69,159 @@
 
 
             <!-- CRUD Operations -->
-            <main class="container">
-                <template x-if="selectedFeed === null">
+            <template x-if="selectedFeed === null">
+                <main class="container">
                     <h1 class="title">Manage Feeds</h1>
-
-                </template>
-
-                <!-- Create Category -->
-                <div class="box mb-6">
-                    <div class="field">
-                        <label for="input-feed-name" class="label">Novo Feed</label>
-                        <div class="control">
-                            <input type="text" x-model="newFeed.name" placeholder="Nome do novo feed" class="input"
-                                id="input-feed-name" required>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label for="input-feed-description" class="label">Descrição</label>
-                        <div class="control">
-                            <input type="text" x-model="newFeed.description" placeholder="Comentário" class="input"
-                                id="input-feed-description" required>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label for="input-feed-type" class="label">Tipo de Feed</label>
-                        <div class="select" id="input-feed-type">
-                            <select x-model="newFeed.feed_type">
-                                <template x-for="feed in feed_types">
-                                    <option x-text="feed"></option>
-                                </template>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label class="checkbox">
-                            <input type="checkbox" x-model="newFeed.is_public" /> É público?
-                        </label>
-                    </div>
-                    <button @click="await createFeed()" class="button is-success is-fullwidth">Adicionar Feed</button>
-                </div>
-
-                <!-- Category List -->
-                <div>
-                    <template x-for="feed in feeds" :key="feed.id">
-                        <div class="box mb-4">
-                            <div class="columns is-mobile is-vcentered"
-                                :class="{ 'has-background-primary': feed === selectedFeed }">
-                                <div class="column">
-                                    <span class="title is-4" x-text="feed.name"></span>
-                                </div>
-                                <div class="column is-narrow">
-                                    <button @click="await removeFeed(feed.id)" class="button is-danger is-small">Delete
-                                        Category</button>
-                                    <button @click="await showEntries(feed)" class="button is-info is-small ml-2">View
-                                        Items</button>
-                                </div>
+                    <div class="columns">
+                        <div class="column is-two-thirds">
+                            <div class="table-container">
+                                <table class="table is-fullwidth">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Tipo</th>
+                                            <th>Descrição</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="feed in feeds" :key="feed.id">
+                                            <tr :class="feed.is_public ? '' : 'is-light'">
+                                                <td x-text="feed.name"></td>
+                                                <td x-text="FEED_DATA_TYPE[feed.type]"></td>
+                                                <td x-text="feed.description"></td>
+                                                <td>
+                                                    <button @click="feedMarkToEdit(feed)"
+                                                        class="button is-info is-small">Editar</button>
+                                                    <button @click="await removeFeed(feed)"
+                                                        class="button is-danger is-small">Remover</button>
+                                                    <button @click="await showEntries(feed)"
+                                                        class="button is-success is-small ml-2">Ver Entradas</button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                    </template>
-                </div>
-
-                <h3 class="subtitle is-5 mb-3">Entradas</h3>
-                <div class="field mb-4">
-                    <input type="text" x-model="newEntry.value" placeholder="New Entry value" class="input" required>
-                </div>
-                <button @click="await createEntry()" class="button is-primary is-small mb-4">Add Entry</button>
-                <div class="list">
-                    <template x-for="entry in entries" :key="entry.id">
-                        <!-- Item List -->
-                        <div class="list-item">
-                            <div class="columns is-mobile is-vcentered">
-                                <div class="column">
-                                    <span x-text="entry.value"></span>
+                        <div class="column">
+                            <form @submit.prevent="await submitFeed()" @reset.prevent="resetFeed()" class="box">
+                                <h2 x-text="feedActionName() + ' Feed'"></h2>
+                                <div class="field">
+                                    <label for="input-feed-name" class="label">Nome do feed</label>
+                                    <div class="control">
+                                        <input type="text" x-model="newFeed.name" placeholder="Nome do novo feed"
+                                            class="input" id="input-feed-name" required :readonly="!feedFormCreate">
+                                    </div>
                                 </div>
-                                <div class="column is-narrow">
-                                    <button @click="await editEntry(entry)" class="button is-warning is-small">Edit</button>
-                                    <button @click="await removeEntry(entry)"
-                                        class="button is-danger is-small ml-2">Delete</button>
+                                <div class="field">
+                                    <label for="input-feed-description" class="label">Descrição</label>
+                                    <div class="control">
+                                        <input type="text" x-model="newFeed.description" placeholder="Comentário"
+                                            class="input" id="input-feed-description">
+                                    </div>
                                 </div>
-                            </div>
+                                <div class="field">
+                                    <label for="input-feed-type" class="label">Tipo de Feed</label>
+                                    <div class="select" id="input-feed-type">
+                                        <select x-model="newFeed.feed_type" :readonly="!feedFormCreate">
+                                            <template x-for="(fv, fn) in FEED_DATA_TYPE">
+                                                <option :value="fv" x-text="fn"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label class="checkbox">
+                                        <input id="input-feed-is-public" type="checkbox" x-model="newFeed.is_public" />
+                                        É público?
+                                    </label>
+                                </div>
+                                <button type="submit" class="button is-success" x-text="feedActionName()"></button>
+                                <button type="reset" class="button is-light">Cancelar</button>
+                            </form>
                         </div>
-                    </template>
-                </div>
-            </main>
+                    </div>
+                </main>
+            </template>
+            <template x-if="selectedFeed !== null">
+                <main class="container">
+                    <div class="card">
+                        <header class="card-header">
+                            <p class="card-header-title" x-text="selectedFeed.name"></p>
+                            <button class="card-header-icon" aria-label="more options" @click="unselectFeed()">
+                                <span class="icon">
+                                    <i class="fas fa-angle-left" aria-hidden="true"></i>
+                                </span>
+                            </button>
+                        </header>
+                    </div>
+                    <div class="columns">
+                        <div class="column is-two-thirds">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Valor</th>
+                                        <th>Descrição</th>
+                                        <th>Válido Até</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="entry in entries" :key="entry.id">
+                                        <tr :class="entry.enabled ? '' : 'is-danger'">
+                                            <td x-text="entry.value"></td>
+                                            <td x-text="feed.description"></td>
+                                            <td x-text="feed.valid_until"></td>
+                                            <td>
+                                                <button @click="await editEntry(entry)"
+                                                    class="button is-info is-small ml-2">Editar</button>
+                                                <button @click="await removeEntry(entry)"
+                                                    class="button is-danger is-small">Remover</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="column">
+                            <form @submit.prevent="await submitEntry()" @reset.prevent="resetEntry()" class="box">
+                                <h2 x-text="entryActionName() + ' Entrada'"></h2>
+                                <div class="field">
+                                    <label for="input-entry-value" class="label">Valor</label>
+                                    <div class="control">
+                                        <input type="text" x-model="newEntry.value" placeholder="Valor da entrada"
+                                            class="input" id="input-entry-value" required :readonly="!entryFormCreate">
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label for="input-entry-description" class="label">Descrição</label>
+                                    <div class="control">
+                                        <input type="text" x-model="newEntry.description" placeholder="Comentário"
+                                            class="input" id="input-entry-description">
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label for="input-entry-description" class="label">Valido até?</label>
+                                    <div class="control">
+                                        <input type="datetime" x-model="newEntry.valid_until" placeholder="Valido até"
+                                            class="input" id="input-entry-description">
+                                    </div>
+                                    <button class="button" @click.prevent="limparValidade()"></button>
+                                </div>
+                                <div class="field">
+                                    <label class="checkbox">
+                                        <input type="checkbox" x-model="newEntry.enabled" /> Habilitado?
+                                    </label>
+                                </div>
+                                <button type="submit" class="button is-success" x-text="entryActionName()"></button>
+                                <button type="reset" class="button is-light">Cancelar</button>
+                            </form>
+                        </div>
+                    </div>
+                </main>
+            </template>
+        </div>
     </template>
 </body>
 
