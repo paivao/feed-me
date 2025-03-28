@@ -171,8 +171,8 @@
                                     <template x-for="entry in entries" :key="entry.id">
                                         <tr :class="entry.enabled ? '' : 'is-danger'">
                                             <td x-text="entry.value"></td>
-                                            <td x-text="feed.description"></td>
-                                            <td x-text="feed.valid_until"></td>
+                                            <td x-text="entry.description"></td>
+                                            <td x-text="entry.valid_until"></td>
                                             <td>
                                                 <button @click="await editEntry(entry)"
                                                     class="button is-info is-small ml-2">Editar</button>
@@ -186,7 +186,7 @@
                             <div class="buttons">
                                 <button class="button" x-show="entryPagination.page > 0">Primeira página</button>
                                 <button class="button" x-show="entryPagination.page > 1">Anterior</button>
-                                <button class="button" x-text="'Página ' + entryPagination.page" disabled></button>
+                                <button class="button" x-text="'Página ' + (entryPagination.page+1)" disabled></button>
                                 <button class="button" x-show="entryPagination.page < entryPagination.lastPage() - 1">Próxima</button>
                                 <button class="button" x-show="entryPagination.page < entryPagination.lastPage()">Última Página</button>
                             </div>
