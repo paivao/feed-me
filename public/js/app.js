@@ -189,8 +189,8 @@ function app() {
         async showEntries(feed) {
             this.selectedFeed = feed;
             this.entryPagination.page = 0;
-            await this.countEntries();
-            await this.fetchEntries();
+            await this.countEntries(feed);
+            await this.fetchEntries(feed);
         },
 
         async countEntries(feed) {
