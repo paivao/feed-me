@@ -32,6 +32,47 @@ type commonEntryRequest struct {
 	ValidUntil  pgtype.Timestamp `json:"valid_until"`
 }
 
+func (ctrl *EntryController) CountEntries(c *fiber.Ctx) error {
+	ctxlog := log.WithContext(c.Context())
+
+	// Check feed type
+	feedType := database.Feedtype(c.Params("type"))
+	if !feedType.Valid() {
+		ctxlog.Warnf("incorrect feed type: %v", feedType)
+		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
+	}
+
+	feed_id, err := c.ParamsInt("feed")
+	if err != nil {
+		ctxlog.Warnf("invalid feed id: %v", err)
+		return fiber.ErrBadRequest
+	}
+	queries := database.New(ctrl.DB)
+	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
+	if err == sql.ErrNoRows {
+		ctxlog.Warnf("feed %s of type %s not found", c.Params("feed"), feedType)
+		return fiber.NewError(fiber.StatusNotFound, "feed not found")
+	}
+	if err != nil {
+		ctxlog.Warnf("database error: %v", err)
+		return fiber.ErrBadRequest
+	}
+	var count int64
+	switch feedType {
+	case database.FeedtypeIp:
+		count, err = queries.CountIPEntries(c.Context(), feed.ID)
+	case database.FeedtypeDomain:
+		count, err = queries.CountDomainEntries(c.Context(), feed.ID)
+	case database.FeedtypeUrl:
+		count, err = queries.CountURLEntries(c.Context(), feed.ID)
+	}
+	if err != nil {
+		ctxlog.Warnf("database error: %v", err)
+		return fiber.NewError(fiber.StatusBadRequest, "could not retrive entries")
+	}
+	return c.JSON(count)
+}
+
 func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 	ctxlog := log.WithContext(c.Context())
 
@@ -43,8 +84,8 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 	}
 
 	// Check if limit and offset are included
-	size := c.QueryInt("quantity")
-	offset := c.QueryInt("offset")
+	size := c.QueryInt("window")
+	offset := c.QueryInt("page")
 	if size < 0 || offset < 0 {
 		ctxlog.Warnf("invalid size (%d) and offset (%s)", size, offset)
 		return fiber.ErrBadRequest
@@ -53,7 +94,10 @@ func (ctrl *EntryController) ListEntries(c *fiber.Ctx) error {
 		offset *= size
 	}
 	feed_id, err := c.ParamsInt("feed")
-
+	if err != nil {
+		ctxlog.Warnf("invalid feed id: %v", err)
+		return fiber.ErrBadRequest
+	}
 	queries := database.New(ctrl.DB)
 	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
@@ -113,6 +157,10 @@ func (ctrl *EntryController) AddEntry(c *fiber.Ctx) error {
 	}
 	queries := database.New(ctrl.DB)
 	feed_id, err := c.ParamsInt("feed")
+	if err != nil {
+		ctxlog.Warnf("invalid feed id: %v", err)
+		return fiber.ErrBadRequest
+	}
 	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
@@ -171,7 +219,10 @@ func (ctrl *EntryController) EditEntry(c *fiber.Ctx) error {
 	}
 	queries := database.New(ctrl.DB)
 	feed_id, err := c.ParamsInt("feed")
-
+	if err != nil {
+		ctxlog.Warnf("invalid feed id: %v", err)
+		return fiber.ErrBadRequest
+	}
 	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")
@@ -251,7 +302,10 @@ func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
 
 	queries := database.New(ctrl.DB)
 	feed_id, err := c.ParamsInt("feed")
-
+	if err != nil {
+		ctxlog.Warnf("invalid feed id: %v", err)
+		return fiber.ErrBadRequest
+	}
 	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
 		return fiber.NewError(fiber.StatusNotFound, "feed not found")

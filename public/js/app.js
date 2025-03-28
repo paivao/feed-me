@@ -3,7 +3,7 @@ function clearFeed() {
         name: '',
         description: '',
         feed_type: "ip",
-        is_public: true
+        is_public: true,
     }
 }
 
@@ -11,14 +11,14 @@ function clearEntry() {
     return {
         value: '',
         description: '',
-        valid_until: null
+        valid_until: null,
     }
 }
 
 function clearLoginData() {
     return {
         username: '',
-        password: ''
+        password: '',
     }
 }
 
@@ -35,17 +35,7 @@ console.log(apiURL);
 const FEED_DATA_TYPE = {
     ip: "IP",
     url: "URL",
-    domain: "Domain"
-}
-
-const FEED_ACT_NAME = {
-    create: "Adicionar",
-    edit: "Editar"
-}
-
-const ENTRY_ACT_NAME = {
-    create: "Nova Entrada",
-    edit: "Editar Entrada"
+    domain: "Domain",
 }
 
 function app() {
@@ -65,6 +55,12 @@ function app() {
 
         feedFormCreate: true,
         entryFormCreate: true,
+
+        entryPagination: {
+            window: 20,
+            page: 0,
+            count: 0,
+        },
 
         init() {
             axios.get(`${apiURL}/whoami`).then(response => {
@@ -116,7 +112,8 @@ function app() {
         },
 
         async submitFeed() {
-            await (this.feedFormCreate ? this.createFeed() : this.editFeed());
+            const dafeed = Object.fromEntries(Object.entries(this.newFeed).filter(([_, v]) => v != null || v != ''));
+            await (this.feedFormCreate ? this.createFeed(dafeed) : this.editFeed(dafeed));
             this.resetFeed()
         },
 
@@ -131,7 +128,8 @@ function app() {
         },
 
         async submitEntry() {
-            await (this.entryFormCreate ? this.createEntry() : this.editEntry());
+            const daentry = Object.fromEntries(Object.entries(this.newEntry).filter(([_, v]) => v != null || v != ''));
+            await (this.entryFormCreate ? this.createEntry(daentry) : this.editEntry(daentry));
             this.resetEntry()
         },
 
@@ -151,19 +149,19 @@ function app() {
         },
 
         // Category CRUD operations
-        async createFeed() {
+        async createFeed(feed) {
             if (this.newFeed.name.trim() === '') return;
             try {
-                const response = await axios.put(`${apiURL}/feed`, this.newFeed)
+                const response = await axios.put(`${apiURL}/feed`, feed)
                 this.feeds.push(response.data.feed);
             } catch (error) {
                 console.error(error);
             }
         },
 
-        async editFeed() {
+        async editFeed(feed) {
             try {
-                const response = await axios.put(`${apiURL}/feed`, this.newFeed)
+                const response = await axios.put(`${apiURL}/feed`, feed)
                 const foundFeed = this.feeds.find(f => f.id === response.data.id)
                 foundFeed.description = this.newFeed.description;
                 foundFeed.is_public = this.newFeed.is_public;
@@ -196,22 +194,22 @@ function app() {
         },
 
         // Item CRUD operations
-        async createEntry() {
+        async createEntry(entry) {
             if (this.newEntry.value.trim() === '')
                 return;
             const feed = this.selectedFeed;
             try {
-                const response = axios.put(`${apiURL}/entry/${feed.type}/${feed.id}`, this.newEntry)
+                const response = axios.put(`${apiURL}/entry/${feed.type}/${feed.id}`, entry)
                 this.entries.push(response.data.entry);
             } catch (error) {
                 console.error(error);
             }
         },
 
-        async editEntry() {
+        async editEntry(entry) {
             const feed = this.selectedFeed;
             try {
-                const response = post(`${apiURL}/entry/${feed.type}/${feed.id}/${entry.id}`, this.newEntry)
+                const response = post(`${apiURL}/entry/${feed.type}/${feed.id}/${entry.id}`, entry)
                 const foundEntry = this.entries.find(e => e.id == response.data.id)
                 foundEntry.enabled = this.newEntry.enabled;
                 foundEntry.description = this.newEntry.description;

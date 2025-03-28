@@ -12,6 +12,39 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countDomainEntries = `-- name: CountDomainEntries :one
+SELECT COUNT(id) FROM domain_entries WHERE feed_id = $1
+`
+
+func (q *Queries) CountDomainEntries(ctx context.Context, feedID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countDomainEntries, feedID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countIPEntries = `-- name: CountIPEntries :one
+SELECT COUNT(id) FROM ip_entries WHERE feed_id = $1
+`
+
+func (q *Queries) CountIPEntries(ctx context.Context, feedID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countIPEntries, feedID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countURLEntries = `-- name: CountURLEntries :one
+SELECT COUNT(id) FROM url_entries WHERE feed_id = $1
+`
+
+func (q *Queries) CountURLEntries(ctx context.Context, feedID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countURLEntries, feedID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const editDomainEntryById = `-- name: EditDomainEntryById :exec
 UPDATE domain_entries SET enabled = $1, description = $2, valid_until = $3 WHERE id = $4 RETURNING id, value, enabled, description, valid_until, feed_id
 `

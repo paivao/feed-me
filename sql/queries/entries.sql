@@ -5,6 +5,9 @@
 -- name: ListIPEntries :many
 SELECT * FROM ip_entries WHERE feed_id = $1;
 
+-- name: CountIPEntries :one
+SELECT COUNT(id) FROM ip_entries WHERE feed_id = $1;
+
 -- name: GetIPEntryById :one
 SELECT * FROM ip_entries WHERE id = $1 AND feed_id = $2;
 
@@ -30,6 +33,9 @@ DELETE FROM ip_entries WHERE id = $1 AND feed_id = $2;
 -- name: ListDomainEntries :many
 SELECT * FROM domain_entries WHERE feed_id = $1;
 
+-- name: CountDomainEntries :one
+SELECT COUNT(id) FROM domain_entries WHERE feed_id = $1;
+
 -- name: GetDomainEntryById :one
 SELECT * FROM domain_entries WHERE id = $1 AND feed_id = $2;
 
@@ -54,6 +60,9 @@ DELETE FROM domain_entries WHERE id = $1 AND feed_id = $2;
 
 -- name: ListURLEntries :many
 SELECT * FROM url_entries WHERE feed_id = $1;
+
+-- name: CountURLEntries :one
+SELECT COUNT(id) FROM url_entries WHERE feed_id = $1;
 
 -- name: GetURLEntryById :one
 SELECT * FROM url_entries WHERE id = $1 AND feed_id = $2;
