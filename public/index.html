@@ -70,7 +70,7 @@
 
             <!-- CRUD Operations -->
             <template x-if="selectedFeed === null">
-                <main class="container">
+                <main class="container mt-6">
                     <h1 class="title">Manage Feeds</h1>
                     <div class="columns">
                         <div class="column is-two-thirds">
@@ -145,7 +145,7 @@
                 </main>
             </template>
             <template x-if="selectedFeed !== null">
-                <main class="container">
+                <main class="container mt-6">
                     <div class="card">
                         <header class="card-header">
                             <p class="card-header-title" x-text="selectedFeed.name"></p>
