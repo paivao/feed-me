@@ -1,24 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="has-navbar-fixed-top">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@2.8.2/dist/alpine.min.js" defer></script>
-    <script src="/static/app.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css" rel="stylesheet">
+    <script src="/admin/js/axios.min.js"></script>
+    <script src="/admin/js/alpine.min.js" defer></script>
+    <script src="/admin/js/app.js"></script>
+    <link href="/admin/css/bulma.min.css" rel="stylesheet">
     <title>Feed-Me</title>
+    <style>
+        .fullscreen {
+            height: 100vh;
+        }
+    </style>
 </head>
 
 <body x-data="app()">
 
-    <div class="container is-max-desktop mt-6">
-        <!-- Authentication Section -->
-        <template x-if="user === null">
-            <div class="box mb-6">
-                <h2 class="title is-3 mb-4">Login</h2>
-                <form @submit.prevent="login()">
+    <!-- Authentication Section -->
+    <template x-if="user === null" x-cloak>
+        <section class="columns is-vcentered is-centered is-mobile has-text-centered fullscreen">
+            <div class="column is-narrow">
+                <h1 class="title">Feed-Me</h1>
+                <h2 class="subtitle">Login</h2>
+                <form @submit.prevent="await login()" class="box">
                     <div class="field mb-4">
                         <label for="input-username" class="label">Usuário</label>
                         <div class="control">
@@ -35,19 +41,39 @@
                     <button type="submit" class="button is-link is-fullwidth">Login</button>
                 </form>
             </div>
-        </template>
+        </section>
+    </template>
 
-        <template x-if="user !== null">
-            <div>
-            <!-- Show user info and logout -->
-            <div class="box mb-6">
-                <h2 class="title is-3">Bem vindo, <span x-text="user.name"></span></h2>
-                <button @click="logout()" class="button is-danger is-fullwidth">Logout</button>
-            </div>
+    <template x-if="user !== null" x-cloak>
+        <div>
+            <nav class="navbar is-light is-fixed-top" role="navigation" aria-label="main navigation">
+                <div class="navbar-brand">
+                    <span class="navbar-item">
+                        Feed-Me
+                    </span>
+                </div>
+                <div class="navbar-menu">
+                    <div class="navbar-end">
+                        <div class="navbar-item">
+                            Bem vindo,&nbsp;<span x-text="user.name"></span>
+                        </div>
+                        <div class="navbar-item">
+                            <div class="buttons">
+                                <a class="button is-primary">Gerenciar</a>
+                                <button @click="await logout()" class="button is-danger">Logout</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
 
             <!-- CRUD Operations -->
-            <div>
-                <h2 class="title is-3 mb-4">Manage Feeds and Entries</h2>
+            <main class="container">
+                <template x-if="selectedFeed === null">
+                    <h1 class="title">Manage Feeds</h1>
+
+                </template>
 
                 <!-- Create Category -->
                 <div class="box mb-6">
@@ -80,7 +106,7 @@
                             <input type="checkbox" x-model="newFeed.is_public" /> É público?
                         </label>
                     </div>
-                    <button @click="createFeed()" class="button is-success is-fullwidth">Adicionar Feed</button>
+                    <button @click="await createFeed()" class="button is-success is-fullwidth">Adicionar Feed</button>
                 </div>
 
                 <!-- Category List -->
@@ -93,9 +119,9 @@
                                     <span class="title is-4" x-text="feed.name"></span>
                                 </div>
                                 <div class="column is-narrow">
-                                    <button @click="removeFeed(feed.id)" class="button is-danger is-small">Delete
+                                    <button @click="await removeFeed(feed.id)" class="button is-danger is-small">Delete
                                         Category</button>
-                                    <button @click="showEntries(feed)" class="button is-info is-small ml-2">View
+                                    <button @click="await showEntries(feed)" class="button is-info is-small ml-2">View
                                         Items</button>
                                 </div>
                             </div>
@@ -107,7 +133,7 @@
                 <div class="field mb-4">
                     <input type="text" x-model="newEntry.value" placeholder="New Entry value" class="input" required>
                 </div>
-                <button @click="createEntry()" class="button is-primary is-small mb-4">Add Entry</button>
+                <button @click="await createEntry()" class="button is-primary is-small mb-4">Add Entry</button>
                 <div class="list">
                     <template x-for="entry in entries" :key="entry.id">
                         <!-- Item List -->
@@ -117,17 +143,16 @@
                                     <span x-text="entry.value"></span>
                                 </div>
                                 <div class="column is-narrow">
-                                    <button @click="editEntry(entry)" class="button is-warning is-small">Edit</button>
-                                    <button @click="removeEntry(entry)"
+                                    <button @click="await editEntry(entry)" class="button is-warning is-small">Edit</button>
+                                    <button @click="await removeEntry(entry)"
                                         class="button is-danger is-small ml-2">Delete</button>
                                 </div>
                             </div>
                         </div>
                     </template>
                 </div>
-            </div>
-        </template>
-    </div>
+            </main>
+    </template>
 </body>
 
 </html>

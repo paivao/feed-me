@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"embed"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -18,7 +16,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/jackc/pgx/v5"
@@ -36,6 +33,7 @@ var (
 	}
 )
 
+/*
 // Embed a single file
 //
 //go:embed index.html
@@ -45,6 +43,7 @@ var index_page embed.FS
 //
 //go:embed static/*
 var embed_static embed.FS
+*/
 
 func main() {
 	bg := context.Background()
@@ -133,15 +132,18 @@ func main() {
 
 	app.Mount("/api", api)
 
-	app.Use("/", filesystem.New(filesystem.Config{
-		Root: http.FS(index_page),
-	}))
+	/*
+		app.Use("/admin", filesystem.New(filesystem.Config{
+			Root: http.FS(index_page),
+		}))
 
-	app.Use("/static", filesystem.New(filesystem.Config{
-		Root: http.Dir("./static"),
-		//PathPrefix: "static",
-		Browse: false,
-	}))
+		app.Use("/admin/static", filesystem.New(filesystem.Config{
+			Root:       http.FS(embed_static),
+			PathPrefix: "static",
+			Browse:     false,
+		}))
+	*/
+	app.Static("/admin", "./public", fiber.Static{Index: "index.html"})
 
 	// Start server
 	log.Fatal(fiber_app.Listen(fmt.Sprintf("%s:%d", conf.Host, conf.Port)))
