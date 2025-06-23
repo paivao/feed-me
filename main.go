@@ -124,12 +124,7 @@ func main() {
 	feedGroup.Post("/:feed", feedController.EditFeed)
 	feedGroup.Delete("/:feed", feedController.DeleteFeed)
 
-	entryGroup := api.Group("/entry", userController.UserLoggedMiddleware)
-	entryGroup.Get("/:type/:feed/", entryController.ListEntries)
-	entryGroup.Get("/:type/:feed/count", entryController.CountEntries)
-	entryGroup.Put("/:type/:feed/", entryController.AddEntry)
-	entryGroup.Post("/:type/:feed/:entry", entryController.EditEntry)
-	entryGroup.Delete("/:type/:feed/:entry", entryController.RemoveEntry)
+	entryController.AddRoutes(api.Group("/entry", userController.UserLoggedMiddleware))
 
 	app.Mount("/api", api)
 

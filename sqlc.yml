@@ -13,6 +13,7 @@ sql:
         omit_unused_structs: true
         emit_enum_valid_method: true
         query_parameter_limit: 4
+        emit_methods_with_db_argument: true
         overrides:
           - column: ip_entries.value
             go_type:

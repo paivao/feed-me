@@ -10,6 +10,7 @@ import (
 	"github.com/feed-me/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
+	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -32,21 +33,32 @@ type commonEntryRequest struct {
 	ValidUntil  pgtype.Timestamp `json:"valid_until"`
 }
 
-func (ctrl *EntryController) CountEntries(c *fiber.Ctx) error {
-	ctxlog := log.WithContext(c.Context())
-
-	// Check feed type
+func checkFeedType(c *fiber.Ctx) error {
 	feedType := database.Feedtype(c.Params("type"))
 	if !feedType.Valid() {
-		ctxlog.Warnf("incorrect feed type: %v", feedType)
+		fiberlog.Warnf("incorrect feed type: %v", feedType)
 		return fiber.NewError(fiber.StatusBadRequest, "incorrect feed type")
 	}
+	c.Locals("feed_type", feedType)
+	return c.Next()
+}
 
-	feed_id, err := c.ParamsInt("feed")
+func checkFeedId(c *fiber.Ctx) error {
+	feedId, err := c.ParamsInt("feed")
 	if err != nil {
-		ctxlog.Warnf("invalid feed id: %v", err)
+		fiberlog.Warnf("invalid feed id: %v", err)
 		return fiber.ErrBadRequest
 	}
+	c.Locals("feed_id", int64(feedId))
+	return c.Next()
+}
+
+func (ctrl *EntryController) fetchFeed() error {
+
+}
+
+func (ctrl *EntryController) CountEntries(c *fiber.Ctx) error {
+
 	queries := database.New(ctrl.DB)
 	feed, err := queries.GetFeedByIdAndType(c.Context(), int64(feed_id), feedType)
 	if err == sql.ErrNoRows {
@@ -334,4 +346,12 @@ func (ctrl *EntryController) RemoveEntry(c *fiber.Ctx) error {
 	user, _ := c.Locals("userid").(database.User)
 	ctxlog.Infof("%s removed by %s [%s]: %d/%d", feedType, user.Name, c.Context().RemoteIP().String(), id, feed.ID)
 	return c.JSON(fiber.Map{"message": "entry removed", "id": id})
+}
+
+func (ctrl *EntryController) AddRoutes(r fiber.Router) {
+	r.Get("/:type/:feed/", ctrl.ListEntries)
+	r.Get("/:type/:feed/count", ctrl.CountEntries)
+	r.Put("/:type/:feed/", ctrl.AddEntry)
+	r.Post("/:type/:feed/:entry", ctrl.EditEntry)
+	r.Delete("/:type/:feed/:entry", ctrl.RemoveEntry)
 }
